@@ -38,4 +38,8 @@ export const api = {
   createUser:         (data)               => req("POST", "/users/", data),
   updateUser:         (id, data)           => req("PATCH", `/users/${id}`, data),
   deleteUser:         (id)                 => req("DELETE", `/users/${id}`),
+
+  // Patients (settings)
+  updatePatient:      (id, data)           => req("PATCH", `/patients/${id}`, data),
+  deletePatient:      (id)                 => req("DELETE", `/patients/${id}`),
 };

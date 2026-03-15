@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Depends, Query
+import logging
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Patient
-from ..schemas import PatientOut
+from ..schemas import PatientOut, PatientUpdate
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
 
@@ -31,4 +34,30 @@ def list_patients(
 
 @router.get("/{patient_id}", response_model=PatientOut)
 def get_patient(patient_id: int, db: Session = Depends(get_db)):
-    return db.query(Patient).filter(Patient.id == patient_id).first()
+    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    return patient
+
+
+@router.patch("/{patient_id}", response_model=PatientOut)
+def update_patient(patient_id: int, body: PatientUpdate, db: Session = Depends(get_db)):
+    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    for k, v in body.model_dump(exclude_none=True).items():
+        setattr(patient, k, v)
+    db.commit()
+    db.refresh(patient)
+    logger.info("Patient %s updated", patient_id)
+    return patient
+
+
+@router.delete("/{patient_id}", status_code=204)
+def delete_patient(patient_id: int, db: Session = Depends(get_db)):
+    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    db.delete(patient)
+    db.commit()
+    logger.info("Patient %s deleted", patient_id)
