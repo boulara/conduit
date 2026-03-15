@@ -87,6 +87,34 @@ class NotificationOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PatientCreate(BaseModel):
+    prescriber: str
+    referral_date: Optional[str] = None
+    latest_sp_partner: Optional[str] = None
+    latest_sp_status: Optional[str] = None
+    latest_sp_substatus: Optional[str] = None
+    aging_of_status: int = 0
+    last_comment: Optional[str] = None
+    latest_hub_sub_status: Optional[str] = None
+    primary_channel: Optional[str] = None
+    primary_payer: Optional[str] = None
+    primary_pbm: Optional[str] = None
+    secondary_channel: Optional[str] = None
+    territory: Optional[str] = None
+    region: Optional[str] = None
+    language: Optional[str] = None
+    hippa_consent: Optional[str] = None
+    program_type: Optional[str] = None
+    first_ship_date: Optional[str] = None
+    last_ship_date: Optional[str] = None
+
+
+class BulkResult(BaseModel):
+    created: int
+    skipped: int
+    errors: list[str]
+
+
 class PatientUpdate(BaseModel):
     prescriber: Optional[str] = None
     referral_date: Optional[str] = None

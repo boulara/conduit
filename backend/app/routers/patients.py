@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Patient
-from ..schemas import PatientOut, PatientUpdate
+from ..schemas import PatientOut, PatientUpdate, PatientCreate, BulkResult
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,22 @@ def list_patients(
     if channel and channel != "All":
         q = q.filter(Patient.primary_channel == channel)
     return q.all()
+
+
+@router.post("/bulk", response_model=BulkResult)
+def bulk_create_patients(body: list[PatientCreate], db: Session = Depends(get_db)):
+    created = 0
+    errors = []
+    for p in body:
+        try:
+            db.add(Patient(**p.model_dump()))
+            db.commit()
+            created += 1
+        except Exception as e:
+            db.rollback()
+            errors.append(f"{p.prescriber}: {str(e)}")
+    logger.info("Bulk patient import: %d created, %d errors", created, len(errors))
+    return {"created": created, "skipped": 0, "errors": errors}
 
 
 @router.get("/{patient_id}", response_model=PatientOut)

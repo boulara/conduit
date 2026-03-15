@@ -42,6 +42,10 @@ export const api = {
   // Patients (settings)
   updatePatient:      (id, data)           => req("PATCH", `/patients/${id}`, data),
   deletePatient:      (id)                 => req("DELETE", `/patients/${id}`),
+  bulkCreatePatients: (rows)               => req("POST", "/patients/bulk", rows),
+
+  // Bulk import
+  bulkCreateUsers:    (rows)               => req("POST", "/users/bulk", rows),
 
   // Case notes
   getNotes:           (patientId, userId)  => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../ThemeContext";
 import { useIsMobile } from "../useIsMobile";
 import { TEAM_COLORS } from "../constants";
@@ -737,6 +737,211 @@ function AboutTab() {
   );
 }
 
+// ── Import Tab ────────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return { headers: [], rows: [] };
+  const parseRow = (line) => {
+    const cols = [];
+    let cur = "", inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === "," && !inQ) { cols.push(cur.trim()); cur = ""; }
+      else cur += ch;
+    }
+    cols.push(cur.trim());
+    return cols;
+  };
+  const headers = parseRow(lines[0]);
+  const rows = lines.slice(1).filter(l => l.trim()).map(l => {
+    const vals = parseRow(l);
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = vals[i] ?? ""; });
+    return obj;
+  });
+  return { headers, rows };
+}
+
+function downloadCSV(filename, content) {
+  const blob = new Blob([content], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+const USER_TEMPLATE = `username,password,name,team,role
+john.doe,pass123,John Doe,NCM,partner
+jane.smith,pass123,Jane Smith,SP,partner
+admin.user,pass123,Admin User,Home Office,admin`;
+
+const USER_HEADERS = ["username","password","name","team","role"];
+
+const PATIENT_TEMPLATE = `prescriber,referral_date,latest_sp_partner,latest_sp_status,latest_sp_substatus,aging_of_status,latest_hub_sub_status,primary_channel,primary_payer,primary_pbm,secondary_channel,territory,region,language,hippa_consent,program_type,first_ship_date,last_ship_date,last_comment
+Dr. Jane Smith,2025-01-15,Specialty Rx,Active,On Therapy,30,In Process,Commercial,Aetna,CVS Caremark,Medicare,TX-001,Southwest,English,Yes,Patient Assistance,2025-02-01,,
+Dr. Bob Lee,2025-02-01,PharmaCo,Pending,Prior Auth Required,12,Pending HUB,Medicare,Medicare Part D,,Government,CA-003,West,Spanish,Yes,Standard,,2025-02-15,Waiting on PA`;
+
+const PATIENT_HEADERS = ["prescriber","referral_date","latest_sp_partner","latest_sp_status","latest_sp_substatus","aging_of_status","latest_hub_sub_status","primary_channel","primary_payer","primary_pbm","secondary_channel","territory","region","language","hippa_consent","program_type","first_ship_date","last_ship_date","last_comment"];
+
+function UploadSection({ title, description, templateFile, templateContent, previewHeaders, submitLabel, onSubmit, theme }) {
+  const fileRef = useRef();
+  const [parsed, setParsed] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setResult(null);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const { headers, rows } = parseCSV(ev.target.result);
+      setParsed({ headers, rows });
+    };
+    reader.readAsText(file);
+  };
+
+  const handleUpload = async () => {
+    if (!parsed?.rows?.length) return;
+    setUploading(true);
+    try {
+      const res = await onSubmit(parsed.rows);
+      setResult(res);
+      setParsed(null);
+      if (fileRef.current) fileRef.current.value = "";
+    } catch (e) {
+      setResult({ created: 0, skipped: 0, errors: [e.message] });
+    } finally { setUploading(false); }
+  };
+
+  return (
+    <div style={{ background: theme.surfaceBg, border: `1px solid ${theme.border}`, borderRadius: 12, padding: 24, marginBottom: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6, flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: theme.text, marginBottom: 4 }}>{title}</div>
+          <div style={{ fontSize: 12, color: theme.textMuted, lineHeight: 1.5 }}>{description}</div>
+        </div>
+        <button onClick={() => downloadCSV(templateFile, templateContent)}
+          style={{ padding: "7px 16px", background: "rgba(46,204,113,0.12)", border: "1px solid rgba(46,204,113,0.35)", borderRadius: 8, color: "#2ecc71", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+          ⬇ Download Template
+        </button>
+      </div>
+
+      <div style={{ margin: "18px 0 14px", borderTop: `1px solid ${theme.border}` }} />
+
+      <label style={{ display: "block", padding: "20px 24px", border: `2px dashed ${parsed ? "#4f8ef7" : theme.border}`, borderRadius: 10, textAlign: "center", cursor: "pointer", background: parsed ? "rgba(79,142,247,0.05)" : "transparent", transition: "all 0.2s" }}>
+        <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} style={{ display: "none" }} />
+        <div style={{ fontSize: 24, marginBottom: 6 }}>📄</div>
+        <div style={{ fontSize: 13, color: parsed ? "#4f8ef7" : theme.textMuted, fontWeight: parsed ? 600 : 400 }}>
+          {parsed ? `${parsed.rows.length} rows loaded — click to change` : "Click to select a CSV file"}
+        </div>
+      </label>
+
+      {parsed && parsed.rows.length > 0 && (
+        <div style={{ marginTop: 16, overflowX: "auto" }}>
+          <div style={{ fontSize: 11, color: theme.textFaint, marginBottom: 6, letterSpacing: 1, textTransform: "uppercase" }}>Preview (first 4 rows)</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <thead>
+              <tr style={{ background: theme.panelBg }}>
+                {previewHeaders.map(h => (
+                  <th key={h} style={{ padding: "6px 10px", textAlign: "left", color: theme.textFaint, fontWeight: 600, letterSpacing: 0.5, whiteSpace: "nowrap", borderBottom: `1px solid ${theme.border}` }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {parsed.rows.slice(0, 4).map((row, i) => (
+                <tr key={i} style={{ borderBottom: `1px solid ${theme.border}` }}>
+                  {previewHeaders.map(h => (
+                    <td key={h} style={{ padding: "6px 10px", color: theme.textMuted, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row[h] || "—"}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {parsed.rows.length > 4 && <div style={{ fontSize: 11, color: theme.textFaint, marginTop: 6 }}>+{parsed.rows.length - 4} more rows</div>}
+        </div>
+      )}
+
+      {parsed && (
+        <button onClick={handleUpload} disabled={uploading || !parsed.rows.length}
+          style={{ marginTop: 16, padding: "10px 28px", background: "#4f8ef7", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+          {uploading ? "Uploading…" : `${submitLabel} (${parsed.rows.length} rows)`}
+        </button>
+      )}
+
+      {result && (
+        <div style={{ marginTop: 16, padding: "14px 18px", borderRadius: 10, background: result.errors.length ? "rgba(231,76,60,0.08)" : "rgba(46,204,113,0.08)", border: `1px solid ${result.errors.length ? "rgba(231,76,60,0.3)" : "rgba(46,204,113,0.3)"}` }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: result.errors.length ? "#e74c3c" : "#2ecc71", marginBottom: result.errors.length ? 8 : 0 }}>
+            {result.errors.length ? "⚠ Import completed with errors" : "✓ Import successful"}
+          </div>
+          <div style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>
+            {result.created} created · {result.skipped} skipped{result.errors.length ? ` · ${result.errors.length} errors` : ""}
+          </div>
+          {result.errors.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              {result.errors.map((e, i) => <div key={i} style={{ fontSize: 11, color: "#e74c3c", marginTop: 3 }}>• {e}</div>)}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ImportTab() {
+  const theme = useTheme();
+  return (
+    <div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: theme.text, marginBottom: 4 }}>Bulk Data Import</div>
+      <div style={{ fontSize: 13, color: theme.textMuted, marginBottom: 24, lineHeight: 1.6 }}>
+        Import your organization's users and case data from CSV files. Download the template, fill in your data, and upload. Existing users (matched by username) are skipped automatically.
+      </div>
+
+      <UploadSection
+        title="👥 Import Users"
+        description={`Add login accounts for your team. Valid teams: Home Office, NCM, SP, Sales. Valid roles: admin, partner.`}
+        templateFile="aaim_users_template.csv"
+        templateContent={USER_TEMPLATE}
+        previewHeaders={USER_HEADERS}
+        submitLabel="Import Users"
+        onSubmit={(rows) => api.bulkCreateUsers(rows)}
+        theme={theme}
+      />
+
+      <UploadSection
+        title="🗂 Import Cases"
+        description="Upload your patient case data. The prescriber field is required; all other fields are optional. Dates should be in YYYY-MM-DD format."
+        templateFile="aaim_cases_template.csv"
+        templateContent={PATIENT_TEMPLATE}
+        previewHeaders={["prescriber","referral_date","latest_sp_partner","latest_sp_status","primary_channel","region"]}
+        submitLabel="Import Cases"
+        onSubmit={(rows) => api.bulkCreatePatients(rows.map(r => ({ ...r, aging_of_status: parseInt(r.aging_of_status) || 0 })))}
+        theme={theme}
+      />
+
+      <div style={{ background: theme.surfaceBg, border: `1px solid ${theme.border}`, borderRadius: 12, padding: 20 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: theme.text, marginBottom: 10 }}>📋 CSV Format Notes</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          {[
+            { label: "Teams", value: "Home Office · NCM · SP · Sales" },
+            { label: "Roles", value: "admin · partner" },
+            { label: "Dates", value: "YYYY-MM-DD (e.g. 2025-01-15)" },
+            { label: "HIPAA Consent", value: "Yes · No · Pending" },
+            { label: "Duplicate Users", value: "Skipped (matched by username)" },
+            { label: "Duplicate Cases", value: "Always created (no dedup)" },
+          ].map(({ label, value }) => (
+            <div key={label}>
+              <div style={{ fontSize: 10, letterSpacing: 1.5, color: theme.textFaint, textTransform: "uppercase", marginBottom: 3 }}>{label}</div>
+              <div style={{ fontSize: 12, color: theme.textMuted }}>{value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Settings page ───────────────────────────────────────────────────────
 export default function SettingsPage({ isDark, onToggleTheme }) {
   const theme    = useTheme();
@@ -802,6 +1007,7 @@ export default function SettingsPage({ isDark, onToggleTheme }) {
     { id: "appearance", label: "🎨  Appearance" },
     { id: "users",      label: "👥  Users" },
     { id: "patients",   label: "🗂  Patients" },
+    { id: "import",     label: "📥  Import" },
   ];
 
   const SectionCard = ({ children }) => (
@@ -992,6 +1198,9 @@ export default function SettingsPage({ isDark, onToggleTheme }) {
           )}
         </SectionCard>
       )}
+
+      {/* ── IMPORT ── */}
+      {activeTab === "import" && <ImportTab />}
 
       {editingUser   !== null && <UserModal    user={editingUser}       onSave={handleUserSave}    onClose={() => setEditingUser(null)} />}
       {editingPatient !== null && <PatientModal patient={editingPatient} onSave={handlePatientSave} onClose={() => setEditingPatient(null)} />}

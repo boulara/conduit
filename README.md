@@ -13,7 +13,71 @@ Teams — **Home Office**, **NCM**, **SP**, and **Sales** — can view a shared 
 
 ---
 
+## Onboarding a New Organization
+
+### Step 1 — Deploy
+Follow the [Deploy to Railway](#deploy-to-railway) steps below. The system starts with demo data pre-loaded.
+
+### Step 2 — Clear demo data (optional)
+Log in as an admin (`sarah.johnson` / `pass123`), go to **Settings → Patients** and delete the demo cases, and **Settings → Users** to remove demo accounts.
+
+### Step 3 — Import your users
+1. Go to **Settings → Import**
+2. Under **Import Users**, click **Download Template** to get `aaim_users_template.csv`
+3. Fill in your team's login accounts:
+
+| Column | Description | Values |
+|---|---|---|
+| `username` | Login username (lowercase) | e.g. `john.doe` |
+| `password` | Initial password | any string |
+| `name` | Display name | e.g. `John Doe` |
+| `team` | Team assignment | `Home Office`, `NCM`, `SP`, `Sales` |
+| `role` | Permission level | `admin`, `partner` |
+
+4. Upload the filled CSV — duplicate usernames are skipped automatically.
+
+### Step 4 — Import your case data
+1. Under **Import Cases**, click **Download Template** to get `aaim_cases_template.csv`
+2. Fill in your patient/case records:
+
+| Column | Description |
+|---|---|
+| `prescriber` | **Required.** Patient or prescriber identifier |
+| `referral_date` | YYYY-MM-DD |
+| `latest_sp_partner` | Specialty pharmacy partner name |
+| `latest_sp_status` | SP status string |
+| `latest_sp_substatus` | SP substatus string |
+| `aging_of_status` | Integer — days since last status change |
+| `latest_hub_sub_status` | HUB substatus |
+| `primary_channel` | Commercial, Medicare, Medicaid, etc. |
+| `primary_payer` | Payer name |
+| `primary_pbm` | PBM name |
+| `secondary_channel` | Secondary insurance channel |
+| `territory` | Territory code |
+| `region` | Region name (used for filtering) |
+| `language` | Patient language |
+| `hippa_consent` | `Yes`, `No`, or `Pending` |
+| `program_type` | Program type label |
+| `first_ship_date` | YYYY-MM-DD |
+| `last_ship_date` | YYYY-MM-DD |
+| `last_comment` | Free text comment |
+
+3. Upload — each row becomes a case in the dashboard immediately.
+
+### Step 5 — Share login credentials
+Send each user their `username` and `password`. They log in at your Railway URL. Passwords can be updated at any time via **Settings → Users**.
+
+---
+
 ## Feature Log
+
+### v1.6.0 — 2026-03-15
+- **Bulk Import** — New Settings → Import tab for onboarding new organizations.
+  - Import users and case data from CSV files with live preview before upload.
+  - Downloadable CSV templates with correct column formats and sample data.
+  - Per-row error reporting; duplicate usernames automatically skipped.
+- **API: Bulk endpoints** — `POST /api/users/bulk` and `POST /api/patients/bulk` accept JSON arrays and return `{ created, skipped, errors }`.
+- **Onboarding guide** — README now includes step-by-step instructions for deploying to a new org and importing their data.
 
 ### v1.5.0 — 2026-03-14
 - **Favicon** — FireFly Software SVG firefly logo as browser tab icon (glowing green abdomen, blue body, wings, antennae on dark circle background).
@@ -128,6 +192,8 @@ Or click any user card on the login screen for one-click login.
 | `POST` | `/api/notifications/` | Create notification (triggers email if `to_team=Sales`) |
 | `PATCH` | `/api/notifications/{id}` | Update status (acknowledge) |
 | `POST` | `/api/notifications/{id}/replies` | Add reply |
+| `POST` | `/api/users/bulk` | Bulk create users from JSON array; returns `{ created, skipped, errors }` |
+| `POST` | `/api/patients/bulk` | Bulk create patients from JSON array; returns `{ created, skipped, errors }` |
 | `GET` | `/api/notes/` | List case notes (optional `?patient_id=` and `?user_id=` for per-user scoping) |
 | `POST` | `/api/notes/` | Create case note |
 | `PATCH` | `/api/notes/{id}` | Update note |
