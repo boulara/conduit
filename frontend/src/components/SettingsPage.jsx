@@ -1127,13 +1127,78 @@ export default function SettingsPage({ themeName, onSetTheme, timezone, onSetTim
     !patientSearch || p.prescriber?.toLowerCase().includes(patientSearch.toLowerCase()) || p.territory?.toLowerCase().includes(patientSearch.toLowerCase())
   );
 
+  const RELEASES = [
+    {
+      version: "2.1.2",
+      date: "March 15, 2026",
+      title: "Time Zone Support",
+      badge: "Enhancement",
+      badgeColor: "#14B8A6",
+      changes: [
+        "All timestamps across the platform (notifications, audit logs, activity feeds) now display in your local time zone",
+        "New time zone selector in Settings → Appearance — choose from Eastern, Central, Mountain, Pacific, or UTC",
+        "Preference is saved per user and remembered across sessions",
+      ],
+    },
+    {
+      version: "2.1.1",
+      date: "March 15, 2026",
+      title: "Demo Data Refresh",
+      badge: "Maintenance",
+      badgeColor: "#94A3B8",
+      changes: [
+        "All sample patient and provider names replaced with realistic but fully fictional data — no real names or identifiers remain in the system",
+        "Specialty pharmacy partner names updated to fictional equivalents throughout the platform",
+        "Version number now visible on the login screen for easier support and version tracking",
+      ],
+    },
+    {
+      version: "2.1.0",
+      date: "March 15, 2026",
+      title: "Admin Portal & Business Plan",
+      badge: "New",
+      badgeColor: "#a78bfa",
+      changes: [
+        "New top-level Admin section (visible to superadmin accounts only) containing the full Conduit business plan and go-to-market strategy",
+        "Superadmin accounts created for Nick Milero and Rick Boulanger with elevated access",
+        "Existing manager-level accounts retain full access to Settings and team tools; role hierarchy now has three tiers: Admin, Manager, and Partner",
+      ],
+    },
+    {
+      version: "2.0.0",
+      date: "March 15, 2026",
+      title: "Conduit Rebrand",
+      badge: "Major",
+      badgeColor: "#f0a500",
+      changes: [
+        "Full platform rebrand from AAIM Portal to Conduit — new name, logo, and visual identity applied everywhere",
+        "New Conduit theme (navy + teal) set as the default; Dark and Light themes remain available in Settings",
+        "Typography updated to Inter system font throughout for a cleaner, more modern look",
+        "All internal references to the prior product name removed from the interface, documents, and exports",
+      ],
+    },
+    {
+      version: "1.7.0",
+      date: "March 15, 2026",
+      title: "Admin Audit Log & Database Viewer",
+      badge: "New",
+      badgeColor: "#a78bfa",
+      changes: [
+        "Login audit log now records every sign-in event including user name, team, timestamp, IP address, and device/browser",
+        "Admins and managers can view all platform data tables directly within Settings without needing database access",
+        "Settings tab bar updated to scroll horizontally so all tabs remain accessible on smaller screens",
+      ],
+    },
+  ];
+
   const tabs = [
-    { id: "demo",       label: "🎬  Demo" },
-    { id: "about",      label: "🏢  About" },
-    { id: "appearance", label: "🎨  Appearance" },
-    { id: "users",      label: "👥  Users" },
-    { id: "patients",   label: "🗂  Patients" },
-    { id: "import",     label: "📥  Import" },
+    { id: "demo",        label: "🎬  Demo" },
+    { id: "about",       label: "🏢  About" },
+    { id: "releases",    label: "📋  Releases" },
+    { id: "appearance",  label: "🎨  Appearance" },
+    { id: "users",       label: "👥  Users" },
+    { id: "patients",    label: "🗂  Patients" },
+    { id: "import",      label: "📥  Import" },
     ...(currentUser?.role === "admin" ? [{ id: "admin", label: "🔒  Admin" }] : []),
   ];
 
@@ -1144,7 +1209,7 @@ export default function SettingsPage({ themeName, onSetTheme, timezone, onSetTim
   );
 
   return (
-    <div style={{ maxWidth: activeTab === "about" || activeTab === "admin" ? "none" : 860, margin: "0 auto" }}>
+    <div style={{ maxWidth: activeTab === "about" || activeTab === "admin" || activeTab === "releases" ? "none" : 860, margin: "0 auto" }}>
       <div style={{ fontSize: 24, fontWeight: 700, color: theme.text, marginBottom: 20 }}>Settings</div>
 
       {/* Tab bar */}
@@ -1165,6 +1230,34 @@ export default function SettingsPage({ themeName, onSetTheme, timezone, onSetTim
       {/* ── ABOUT ── */}
       {activeTab === "about" && (
         <AboutTab />
+      )}
+
+      {/* ── RELEASES ── */}
+      {activeTab === "releases" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {RELEASES.map((r, i) => (
+            <div key={r.version} style={{ background: theme.surfaceBg, border: `1px solid ${theme.border}`, borderRadius: 12, overflow: "hidden" }}>
+              <div style={{ padding: "20px 24px", borderBottom: `1px solid ${theme.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <span style={{ fontFamily: "monospace", fontSize: 15, fontWeight: 700, color: i === 0 ? "#14B8A6" : theme.text }}>v{r.version}</span>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: theme.text }}>{r.title}</div>
+                    <div style={{ fontSize: 12, color: theme.textMuted, marginTop: 2 }}>{r.date}</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {i === 0 && <span style={{ fontSize: 10, fontWeight: 700, color: "#14B8A6", background: "rgba(20,184,166,0.12)", border: "1px solid rgba(20,184,166,0.25)", borderRadius: 20, padding: "3px 10px", letterSpacing: 1 }}>CURRENT</span>}
+                  <span style={{ fontSize: 10, fontWeight: 700, color: r.badgeColor, background: r.badgeColor + "18", border: `1px solid ${r.badgeColor}44`, borderRadius: 20, padding: "3px 10px", letterSpacing: 1 }}>{r.badge.toUpperCase()}</span>
+                </div>
+              </div>
+              <ul style={{ margin: 0, padding: "16px 24px 20px 40px", display: "flex", flexDirection: "column", gap: 8 }}>
+                {r.changes.map((c, j) => (
+                  <li key={j} style={{ fontSize: 13, color: theme.textMuted, lineHeight: 1.6 }}>{c}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
       )}
 
       {/* ── APPEARANCE ── */}
