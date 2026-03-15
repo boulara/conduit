@@ -176,7 +176,7 @@ function AppInner() {
     return () => clearInterval(interval);
   }, [patients]);
 
-  const handleLogin = (u) => { setUser(u); localStorage.setItem("conduit_user", JSON.stringify(u)); };
+  const handleLogin = (u) => { setUser(u); localStorage.setItem("conduit_user", JSON.stringify(u)); loadPatients(); };
   const handleLogout = () => { setUser(null); localStorage.removeItem("conduit_user"); setView("dashboard"); };
 
   // ── Session inactivity timeout (30 min, warn at 29 min) ────────────────────
