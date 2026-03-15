@@ -1,0 +1,154 @@
+import { useState } from "react";
+import { TEAM_COLORS, formatDate, agingColor } from "../constants";
+import NotificationCard from "./NotificationCard";
+import { api } from "../api";
+
+export default function PatientDetailPanel({ patient: p, currentUser, notifications, onNewNotification, onClose }) {
+  const [tab, setTab]           = useState("details");
+  const [comment, setComment]   = useState("");
+  const [targetTeam, setTargetTeam] = useState("NCM");
+  const [priority, setPriority] = useState("normal");
+  const [sending, setSending]   = useState(false);
+
+  const patientNotifs = notifications
+    .filter(n => n.patient_id === p.id)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  const teams = ["NCM", "SP", "ISS", "Home Office"].filter(t => t !== currentUser.team);
+
+  const handleSubmit = async () => {
+    if (!comment.trim()) return;
+    setSending(true);
+    try {
+      const created = await api.createNotification({
+        patient_id:  p.id,
+        to_team:     targetTeam,
+        comment:     comment.trim(),
+        priority,
+        from_user:   currentUser.name,
+        from_team:   currentUser.team,
+      });
+      onNewNotification(created);
+      setComment("");
+      setTab("notifications");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ width: "min(860px, 100%)", maxHeight: "90vh", background: "#0f1923", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        {/* Header */}
+        <div style={{ padding: "20px 28px", background: "rgba(79,142,247,0.1)", borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 19, fontWeight: 700, color: "#fff" }}>{p.prescriber}</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 3 }}>
+              {p.territory} · {p.region} · <span style={{ color: agingColor(p.aging_of_status) }}>{p.aging_of_status} days aging</span>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 22, cursor: "pointer", padding: "4px 10px" }}>✕</button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "0 28px" }}>
+          {["details", "notifications", "new"].map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              style={{ padding: "14px 20px", background: "none", border: "none", borderBottom: `2px solid ${tab === t ? "#4f8ef7" : "transparent"}`, color: tab === t ? "#4f8ef7" : "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: 600, cursor: "pointer", textTransform: "capitalize", letterSpacing: 0.5 }}>
+              {t === "new" ? "New Notification" : t === "notifications" ? `Activity (${patientNotifs.length})` : "Patient Details"}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto", padding: 28 }}>
+          {/* Details tab */}
+          {tab === "details" && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              {[
+                ["SP Partner",        p.latest_sp_partner],
+                ["SP Status",         p.latest_sp_status],
+                ["SP Substatus",      p.latest_sp_substatus],
+                ["HUB Substatus",     p.latest_hub_sub_status],
+                ["Primary Channel",   p.primary_channel],
+                ["Primary Payer",     p.primary_payer],
+                ["Primary PBM",       p.primary_pbm],
+                ["Secondary Channel", p.secondary_channel],
+                ["Program Type",      p.program_type],
+                ["Referral Date",     formatDate(p.referral_date)],
+                ["First Ship Date",   formatDate(p.first_ship_date)],
+                ["Last Ship Date",    formatDate(p.last_ship_date)],
+                ["Language",          p.language],
+                ["HIPAA Consent",     p.hippa_consent],
+              ].map(([label, val]) => (
+                <div key={label} style={{ background: "rgba(255,255,255,0.04)", padding: "12px 16px", borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, letterSpacing: 1.5, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 5 }}>{label}</div>
+                  <div style={{ fontSize: 14, color: "#fff" }}>{val || "—"}</div>
+                </div>
+              ))}
+              {p.last_comment && (
+                <div style={{ gridColumn: "1/-1", background: "rgba(79,142,247,0.08)", padding: "14px 16px", borderRadius: 8, border: "1px solid rgba(79,142,247,0.2)" }}>
+                  <div style={{ fontSize: 10, letterSpacing: 1.5, color: "#4f8ef7", textTransform: "uppercase", marginBottom: 5 }}>Last Comment</div>
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 1.6 }}>{p.last_comment}</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Notifications tab */}
+          {tab === "notifications" && (
+            <div>
+              {patientNotifs.length === 0
+                ? <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", padding: "40px 0", fontSize: 14 }}>No notifications yet for this patient</div>
+                : patientNotifs.map(n => (
+                  <NotificationCard key={n.id} notification={n} currentUser={currentUser} onUpdate={onNewNotification} />
+                ))
+              }
+            </div>
+          )}
+
+          {/* New notification tab */}
+          {tab === "new" && (
+            <div style={{ maxWidth: 560 }}>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: 11, letterSpacing: 2, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 10 }}>Route To Team</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {teams.map(t => (
+                    <button key={t} onClick={() => setTargetTeam(t)}
+                      style={{ padding: "8px 20px", background: targetTeam === t ? (TEAM_COLORS[t]?.accent || "#4f8ef7") : "rgba(255,255,255,0.06)", border: `1px solid ${targetTeam === t ? (TEAM_COLORS[t]?.accent || "#4f8ef7") : "rgba(255,255,255,0.15)"}`, borderRadius: 8, color: targetTeam === t ? "#fff" : "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: 11, letterSpacing: 2, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 10 }}>Priority</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {[["normal","Normal","#4f8ef7"],["high","High","#f0a500"],["urgent","Urgent","#e74c3c"]].map(([v, l, c]) => (
+                    <button key={v} onClick={() => setPriority(v)}
+                      style={{ padding: "6px 16px", background: priority === v ? c + "22" : "rgba(255,255,255,0.04)", border: `1px solid ${priority === v ? c : "rgba(255,255,255,0.1)"}`, borderRadius: 6, color: priority === v ? c : "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: 11, letterSpacing: 2, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 10 }}>Comment / Note</label>
+                <textarea value={comment} onChange={e => setComment(e.target.value)} rows={5}
+                  style={{ width: "100%", padding: "14px 16px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, color: "#fff", fontSize: 14, resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.6, fontFamily: "inherit" }}
+                  placeholder={`Add a note for the ${targetTeam} team…`} />
+              </div>
+
+              <button onClick={handleSubmit} disabled={!comment.trim() || sending}
+                style={{ padding: "12px 32px", background: comment.trim() ? "#4f8ef7" : "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, color: comment.trim() ? "#fff" : "rgba(255,255,255,0.3)", fontSize: 14, fontWeight: 600, cursor: comment.trim() ? "pointer" : "not-allowed" }}>
+                {sending ? "Sending…" : "Send Notification →"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
