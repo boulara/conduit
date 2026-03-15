@@ -1129,6 +1129,19 @@ export default function SettingsPage({ themeName, onSetTheme, timezone, onSetTim
 
   const RELEASES = [
     {
+      version: "2.4.0",
+      date: "March 15, 2026",
+      title: "User Engagement Dashboard",
+      badge: "New",
+      badgeColor: "#a78bfa",
+      changes: [
+        "New 'Usage' tab in the nav (visible to admins and managers) showing a full user engagement dashboard",
+        "30-day login trend chart, team activity breakdown, and per-user activity table with Active / At Risk / Inactive status",
+        "\"Not Using the App\" section highlights users with zero logins in the last 30 days to help drive adoption",
+        "Engagement data is aggregated in real-time from logins, notifications sent, and case notes created",
+      ],
+    },
+    {
       version: "2.3.1",
       date: "March 15, 2026",
       title: "Analytics Loading Fix",

@@ -12,6 +12,7 @@ import AnalyticsPage from "./components/AnalyticsPage";
 import FollowUpCalendar from "./components/FollowUpCalendar";
 import TourOverlay from "./components/TourOverlay";
 import AdminPortal from "./components/AdminPortal";
+import EngagementPage from "./components/EngagementPage";
 import SharedReportPage from "./components/SharedReportPage";
 import { api } from "./api";
 import { APP_VERSION } from "./version";
@@ -239,6 +240,7 @@ function AppInner() {
     { id: "followups",    label: "Follow-Ups", icon: "📅" },
     { id: "inbox",        label: "Inbox",      icon: "✉" },
     { id: "settings",     label: "Settings",   icon: "⚙" },
+    ...(["admin", "manager"].includes(user?.role) ? [{ id: "engagement", label: "Usage", icon: "📊" }] : []),
     ...(user?.role === "admin" ? [{ id: "admin-portal", label: "Admin", icon: "🔒" }] : []),
   ];
 
@@ -360,6 +362,9 @@ function AppInner() {
 
         {/* Page content */}
         <div style={{ padding: isMobile ? "16px 12px 80px" : "28px 32px" }}>
+
+          {/* ── ENGAGEMENT ── */}
+          {view === "engagement" && <EngagementPage currentUser={user} />}
 
           {/* ── ADMIN PORTAL ── */}
           {view === "admin-portal" && <AdminPortal currentUser={user} />}

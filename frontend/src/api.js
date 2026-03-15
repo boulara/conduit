@@ -50,6 +50,7 @@ export const api = {
   // Admin
   getAuditLogs:       ()                   => req("GET", "/admin/audit-logs"),
   getAdminTable:      (name)               => req("GET", `/admin/tables/${name}`),
+  getEngagement:      ()                   => req("GET", "/admin/engagement"),
 
   // Shared reports
   createShareLink:    ()                   => req("POST", "/reports/share"),
