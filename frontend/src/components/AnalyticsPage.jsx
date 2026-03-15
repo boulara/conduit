@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTheme } from "../ThemeContext";
 import { useIsMobile } from "../useIsMobile";
 import { BUCKETS, agingColor, assignBuckets } from "../constants";
+import { api } from "../api";
 
 // ── SVG Donut Chart
 function DonutChart({ data, size = 180, label, sublabel }) {
@@ -119,10 +120,12 @@ function Pill({ label, color }) {
   return <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, padding: "2px 8px", borderRadius: 20, background: color + "22", color, border: `1px solid ${color}44` }}>{label}</span>;
 }
 
-export default function AnalyticsPage({ patients, notifications, currentUser }) {
+export default function AnalyticsPage({ patients, notifications, currentUser, readOnly = false }) {
   const theme    = useTheme();
   const isMobile = useIsMobile();
   const [agingTab, setAgingTab] = useState("distribution"); // distribution | critical | by-region
+  const [shareModal, setShareModal] = useState(null); // null | { token, expires_at } | "loading" | "error"
+  const [copied, setCopied] = useState(false);
 
   if (!patients.length) {
     return <div style={{ textAlign: "center", padding: "60px 0", color: theme.textFaint }}>Loading analytics…</div>;
@@ -252,17 +255,112 @@ export default function AnalyticsPage({ patients, notifications, currentUser }) 
   const barW = Math.floor(chartW / agingBuckets.length) - 6;
 
   return (
-    <div>
+    <div id="analytics-print-root">
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #analytics-print-root, #analytics-print-root * { visibility: visible; }
+          #analytics-print-root { position: absolute; inset: 0; }
+          .no-print { display: none !important; }
+          @page { margin: 1.2cm 1.4cm; size: A4 portrait; }
+        }
+      `}</style>
+
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 24, flexWrap: "wrap", gap: 8 }}>
         <div>
           <div style={{ fontSize: isMobile ? 20 : 26, fontWeight: 700, color: theme.text }}>Case Analytics</div>
           <div style={{ fontSize: 13, color: theme.textMuted, marginTop: 2 }}>{total} patients across {regions.length} regions · Live data</div>
         </div>
-        <div style={{ fontSize: 11, color: theme.textFaint, background: theme.surfaceBg, border: `1px solid ${theme.border}`, borderRadius: 8, padding: "6px 12px" }}>
-          As of today
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {!readOnly && (
+            <>
+              <button
+                className="no-print"
+                onClick={() => window.print()}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: `1px solid ${theme.border}`, background: theme.surfaceBg, color: theme.textMuted, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Export PDF
+              </button>
+              <button
+                className="no-print"
+                onClick={async () => {
+                  setShareModal("loading");
+                  try {
+                    const result = await api.createShareLink();
+                    setShareModal(result);
+                  } catch {
+                    setShareModal("error");
+                  }
+                }}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: "1px solid #14B8A655", background: "#14B8A611", color: "#14B8A6", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                Share Link
+              </button>
+            </>
+          )}
+          <div style={{ fontSize: 11, color: theme.textFaint, background: theme.surfaceBg, border: `1px solid ${theme.border}`, borderRadius: 8, padding: "6px 12px" }}>
+            As of today
+          </div>
         </div>
       </div>
+
+      {/* Share modal */}
+      {shareModal && shareModal !== "loading" && shareModal !== "error" && (
+        <div className="no-print" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+          onClick={() => { setShareModal(null); setCopied(false); }}>
+          <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 16, padding: "28px 28px 24px", maxWidth: 480, width: "100%", boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: theme.text, marginBottom: 6 }}>Shareable Analytics Link</div>
+            <div style={{ fontSize: 12, color: theme.textMuted, marginBottom: 18 }}>
+              This link grants view-only access to the analytics dashboard. It expires in 7 days
+              {shareModal.expires_at ? ` (${new Date(shareModal.expires_at + "Z").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })})` : ""}.
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+              <input
+                readOnly
+                value={`${window.location.origin}/shared/${shareModal.token}`}
+                style={{ flex: 1, padding: "8px 12px", borderRadius: 8, border: `1px solid ${theme.border}`, background: theme.surfaceBg, color: theme.text, fontSize: 12, fontFamily: "monospace", outline: "none" }}
+                onFocus={e => e.target.select()}
+              />
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/shared/${shareModal.token}`);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2500);
+                }}
+                style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #14B8A655", background: copied ? "#14B8A6" : "#14B8A611", color: copied ? "#fff" : "#14B8A6", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
+              >
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+            <div style={{ marginTop: 16, textAlign: "right" }}>
+              <button onClick={() => { setShareModal(null); setCopied(false); }}
+                style={{ padding: "7px 18px", borderRadius: 8, border: `1px solid ${theme.border}`, background: "none", color: theme.textMuted, fontSize: 12, cursor: "pointer" }}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {shareModal === "loading" && (
+        <div className="no-print" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 12, padding: "24px 32px", color: theme.textMuted, fontSize: 13 }}>
+            Generating link…
+          </div>
+        </div>
+      )}
+      {shareModal === "error" && (
+        <div className="no-print" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+          onClick={() => setShareModal(null)}>
+          <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 12, padding: "24px 28px", color: "#e74c3c", fontSize: 13, maxWidth: 360 }}>
+            Failed to generate link. Please try again.
+          </div>
+        </div>
+      )}
 
       {/* ── KPI HERO ROW ── */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(6, 1fr)", gap: 10, marginBottom: 20 }}>

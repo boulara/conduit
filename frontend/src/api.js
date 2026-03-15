@@ -51,6 +51,13 @@ export const api = {
   getAuditLogs:       ()                   => req("GET", "/admin/audit-logs"),
   getAdminTable:      (name)               => req("GET", `/admin/tables/${name}`),
 
+  // Shared reports
+  createShareLink:    ()                   => req("POST", "/reports/share"),
+  getSharedReport:    (token)              => fetch(`/api/reports/${token}`).then(async r => {
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw Object.assign(new Error(e.detail || `HTTP ${r.status}`), { status: r.status }); }
+    return r.json();
+  }),
+
   // Case notes
   getNotes:           (patientId, userId)  => {
     const p = new URLSearchParams();

@@ -106,3 +106,12 @@ class AuditLog(Base):
     ip_address = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
     logged_in_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SharedReport(Base):
+    __tablename__ = "shared_reports"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    created_by = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)

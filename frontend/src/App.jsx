@@ -12,6 +12,7 @@ import AnalyticsPage from "./components/AnalyticsPage";
 import FollowUpCalendar from "./components/FollowUpCalendar";
 import TourOverlay from "./components/TourOverlay";
 import AdminPortal from "./components/AdminPortal";
+import SharedReportPage from "./components/SharedReportPage";
 import { api } from "./api";
 import { APP_VERSION } from "./version";
 
@@ -186,6 +187,12 @@ function AppInner() {
       const next = [...prev]; next[idx] = note; return next;
     });
   };
+
+  // Shared report links bypass login entirely
+  const sharedMatch = window.location.pathname.match(/^\/shared\/([^/]+)/);
+  if (sharedMatch) {
+    return <SharedReportPage token={sharedMatch[1]} />;
+  }
 
   if (!user) return (
     <ThemeContext.Provider value={theme}>

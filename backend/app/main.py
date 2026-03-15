@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from .database import engine, Base
-from .routers import patients, notifications, users, notes, admin
+from .routers import patients, notifications, users, notes, admin, reports
 from . import seed as seeder
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -53,6 +53,12 @@ def _run_migrations():
             user_agent VARCHAR,
             logged_in_at TIMESTAMP DEFAULT NOW()
         )""",
+        """CREATE TABLE IF NOT EXISTS shared_reports (
+            id VARCHAR PRIMARY KEY,
+            created_by VARCHAR NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW(),
+            expires_at TIMESTAMP NOT NULL
+        )""",
     ]
     with engine.connect() as conn:
         for sql in migrations:
@@ -96,6 +102,7 @@ app.include_router(notifications.router)
 app.include_router(users.router)
 app.include_router(notes.router)
 app.include_router(admin.router)
+app.include_router(reports.router)
 
 # ── Serve built React frontend ────────────────────────────────────────────────
 static_dir = os.path.join(os.path.dirname(__file__), "..", "static")

@@ -1129,6 +1129,33 @@ export default function SettingsPage({ themeName, onSetTheme, timezone, onSetTim
 
   const RELEASES = [
     {
+      version: "2.3.0",
+      date: "March 15, 2026",
+      title: "PDF Export & Shareable Analytics Links",
+      badge: "New",
+      badgeColor: "#a78bfa",
+      changes: [
+        "Export the full analytics dashboard as a PDF directly from the Analytics page — print-optimized layout with clean A4 formatting",
+        "Generate a 7-day shareable link that gives read-only access to the analytics dashboard without requiring a login",
+        "Shareable links automatically expire after 7 days and display a clear expiry message when the link is no longer active",
+        "Share modal shows the link, expiry date, and a one-click copy button",
+      ],
+    },
+    {
+      version: "2.2.0",
+      date: "March 15, 2026",
+      title: "Security Hardening",
+      badge: "Security",
+      badgeColor: "#e74c3c",
+      changes: [
+        "All passwords now stored as bcrypt hashes — plain-text credentials removed from the database",
+        "Every API endpoint now requires authentication via X-User-ID header; admin routes additionally enforce admin/manager role",
+        "CORS policy locked to configured allowed origins only",
+        "Comprehensive security test suite added (30 tests covering auth enforcement, input validation, password hashing, and role-based access)",
+        "Railway healthcheck endpoint added at /api/health for reliable deploy monitoring",
+      ],
+    },
+    {
       version: "2.1.2",
       date: "March 15, 2026",
       title: "Time Zone Support",
