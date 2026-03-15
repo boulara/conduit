@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { BUCKETS, TEAM_COLORS, assignBuckets, initials, agingColor } from "./constants";
 import { AgingBadge, TeamBadge, GLOBAL_STYLES } from "./components/Shared";
 import { ThemeContext, dark, light } from "./ThemeContext";
+import { WalkthroughProvider, useWalkthrough } from "./WalkthroughContext";
 import { useIsMobile } from "./useIsMobile";
 import LoginScreen from "./components/LoginScreen";
 import PatientDetailPanel from "./components/PatientDetailPanel";
@@ -9,9 +10,25 @@ import NotificationCard from "./components/NotificationCard";
 import SettingsPage from "./components/SettingsPage";
 import AnalyticsPage from "./components/AnalyticsPage";
 import FollowUpCalendar from "./components/FollowUpCalendar";
+import TourOverlay from "./components/TourOverlay";
 import { api } from "./api";
 
-export default function App() {
+function TourToggle() {
+  const { active, start, stop } = useWalkthrough();
+  return (
+    <button data-tour="tour-toggle" onClick={active ? stop : start}
+      style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 20,
+        background: active ? "rgba(79,142,247,0.2)" : "rgba(255,255,255,0.06)",
+        border: `1px solid ${active ? "#4f8ef7" : "rgba(255,255,255,0.15)"}`,
+        color: active ? "#4f8ef7" : "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 700, cursor: "pointer",
+        transition: "all 0.2s", boxShadow: active ? "0 0 12px rgba(79,142,247,0.3)" : "none" }}>
+      <span style={{ fontSize: 14 }}>🗺</span>
+      {active ? "Exit Tour" : "Guide"}
+    </button>
+  );
+}
+
+function AppInner() {
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem("aaim_user")); } catch { return null; }
   });
@@ -164,6 +181,7 @@ export default function App() {
               <div style={{ display: "flex", gap: 4 }}>
                 {navItems.map(({ id, label }) => (
                   <button key={id} onClick={() => navigateTo(id)}
+                    data-tour={`nav-${id}`}
                     style={{ padding: "8px 18px", background: view === id ? (theme.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)") : "none", border: "none", borderRadius: 6, color: view === id ? theme.text : theme.textMuted, fontSize: 13, fontWeight: 600, cursor: "pointer", position: "relative" }}>
                     {label}
                     {id === "inbox" && myInbox.length > 0 && (
@@ -177,6 +195,7 @@ export default function App() {
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <TourToggle />
               <TeamBadge team={user.team} size="md" />
               <div style={{ width: 36, height: 36, borderRadius: "50%", background: tc.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff" }}>{initials(user.name)}</div>
               <div style={{ fontSize: 13, color: theme.textMuted }}>{user.name}</div>
@@ -192,6 +211,7 @@ export default function App() {
               <span style={{ color: tc.accent }}>AAIM</span> Portal
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <TourToggle />
               {myInbox.length > 0 && (
                 <span style={{ background: tc.accent, color: "#fff", borderRadius: 10, fontSize: 11, fontWeight: 700, padding: "2px 8px" }}>{myInbox.length}</span>
               )}
@@ -216,7 +236,7 @@ export default function App() {
           {view === "dashboard" && (
             <>
               {/* Bucket bar — horizontal scroll on mobile */}
-              <div style={{ marginBottom: 20 }}>
+              <div data-tour="bucket-bar" style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 10, letterSpacing: 2, color: theme.textFaint, textTransform: "uppercase", marginBottom: 10 }}>Case Stage</div>
                 <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
                   {BUCKETS.map(b => {
@@ -234,7 +254,7 @@ export default function App() {
               </div>
 
               {/* Summary cards — 2 cols on mobile, 4 on desktop */}
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
+              <div data-tour="summary-cards" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
                 {[
                   ["Showing",              filtered.length,                                           "#4f8ef7",          null],
                   ["Active Notifications", notifications.filter(n => n.status === "pending").length,  "#f0a500",          null],
@@ -251,7 +271,7 @@ export default function App() {
               </div>
 
               {/* Filters */}
-              <div style={{ display: "flex", gap: 10, marginBottom: 16, flexDirection: isMobile ? "column" : "row", flexWrap: "wrap" }}>
+              <div data-tour="filters" style={{ display: "flex", gap: 10, marginBottom: 16, flexDirection: isMobile ? "column" : "row", flexWrap: "wrap" }}>
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search prescriber, territory, payer, SP…"
                   style={{ flex: "1 1 220px", padding: "10px 14px", background: theme.inputBg, border: `1px solid ${theme.borderInput}`, borderRadius: 8, color: theme.text, fontSize: 13, outline: "none" }} />
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -284,7 +304,7 @@ export default function App() {
 
               {/* Patient list — table on desktop, cards on mobile */}
               {isMobile ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div data-tour="patient-list" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {filtered.map(p => {
                     const pNotifs      = notifications.filter(n => n.patient_id === p.id);
                     const pendingCount = pNotifs.filter(n => (n.to_team === user.team && n.status === "pending") || (n.from_team === user.team && n.status === "replied")).length;
@@ -311,7 +331,7 @@ export default function App() {
                   )}
                 </div>
               ) : (
-                <div style={{ background: theme.surfaceBg, border: `1px solid ${theme.border}`, borderRadius: 12, overflow: "hidden" }}>
+                <div data-tour="patient-list" style={{ background: theme.surfaceBg, border: `1px solid ${theme.border}`, borderRadius: 12, overflow: "hidden" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr style={{ background: theme.surfaceBg2 }}>
@@ -459,7 +479,17 @@ export default function App() {
             onClose={() => setSelectedPatient(null)}
           />
         )}
+
+        <TourOverlay />
       </div>
     </ThemeContext.Provider>
+  );
+}
+
+export default function App() {
+  return (
+    <WalkthroughProvider>
+      <AppInner />
+    </WalkthroughProvider>
   );
 }
