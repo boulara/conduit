@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTheme } from "../ThemeContext";
 import { useIsMobile } from "../useIsMobile";
+import { api } from "../api";
 
 const DAYS   = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -15,9 +16,26 @@ export default function FollowUpCalendar({ patients, notes = [], onNoteChange })
   const isMobile = useIsMobile();
 
   const today      = new Date();
-  const [year,  setYear]  = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth());
+  const [year,  setYear]    = useState(today.getFullYear());
+  const [month, setMonth]   = useState(today.getMonth());
   const [selected, setSelected] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+
+  const handleMarkDone = async (n) => {
+    setBusyId(n.id);
+    try {
+      const updated = await api.updateNote(n.id, { completed_at: new Date().toISOString() });
+      if (onNoteChange) onNoteChange(updated, false);
+    } finally { setBusyId(null); }
+  };
+
+  const handleUndoDone = async (n) => {
+    setBusyId(n.id);
+    try {
+      const updated = await api.updateNote(n.id, { completed_at: null });
+      if (onNoteChange) onNoteChange(updated, false);
+    } finally { setBusyId(null); }
+  };
 
   // Only active (non-completed) notes with a follow_up_date
   const followUps = notes.filter(n => n.follow_up_date && !n.completed_at);
@@ -59,19 +77,40 @@ export default function FollowUpCalendar({ patients, notes = [], onNoteChange })
 
   function NoteCard({ n, color = "#4f8ef7" }) {
     const pat = patientMap[n.patient_id];
+    const isDone = !!n.completed_at;
+    const isBusy = busyId === n.id;
     return (
-      <div style={{ background: theme.surfaceBg, border: `1px solid ${color}33`, borderLeft: `4px solid ${color}`, borderRadius: 10, padding: "12px 14px", marginBottom: 8 }}>
+      <div style={{ background: theme.surfaceBg, border: `1px solid ${isDone ? "#2ecc7133" : color + "33"}`, borderLeft: `4px solid ${isDone ? "#2ecc71" : color}`, borderRadius: 10, padding: "12px 14px", marginBottom: 8, opacity: isDone ? 0.75 : 1 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: theme.text }}>{pat?.prescriber || `Patient #${n.patient_id}`}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: theme.text, textDecoration: isDone ? "line-through" : "none" }}>{pat?.prescriber || `Patient #${n.patient_id}`}</div>
             {pat && <div style={{ fontSize: 11, color: theme.textFaint }}>{pat.territory} · {pat.region}</div>}
           </div>
-          <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: color + "18", color, border: `1px solid ${color}33`, whiteSpace: "nowrap", flexShrink: 0 }}>
-            {new Date(n.follow_up_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-          </span>
+          {isDone ? (
+            <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: "#2ecc7118", color: "#2ecc71", border: "1px solid #2ecc7133", whiteSpace: "nowrap", flexShrink: 0 }}>
+              ✓ Done
+            </span>
+          ) : (
+            <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: color + "18", color, border: `1px solid ${color}33`, whiteSpace: "nowrap", flexShrink: 0 }}>
+              {new Date(n.follow_up_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            </span>
+          )}
         </div>
         <div style={{ fontSize: 13, color: theme.textMuted, lineHeight: 1.5 }}>{n.text}</div>
-        <div style={{ fontSize: 11, color: theme.textFaint, marginTop: 6 }}>— {n.user_name} · {n.user_team}</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+          <div style={{ fontSize: 11, color: theme.textFaint }}>— {n.user_name} · {n.user_team}</div>
+          {isDone ? (
+            <button onClick={() => handleUndoDone(n)} disabled={isBusy}
+              style={{ padding: "3px 10px", background: "rgba(46,204,113,0.1)", border: "1px solid rgba(46,204,113,0.3)", borderRadius: 6, color: "#2ecc71", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+              {isBusy ? "…" : "↩ Undo"}
+            </button>
+          ) : (
+            <button onClick={() => handleMarkDone(n)} disabled={isBusy}
+              style={{ padding: "3px 10px", background: "rgba(46,204,113,0.1)", border: "1px solid rgba(46,204,113,0.3)", borderRadius: 6, color: "#2ecc71", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+              {isBusy ? "…" : "✓ Mark Done"}
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -177,17 +216,25 @@ export default function FollowUpCalendar({ patients, notes = [], onNoteChange })
                     const diffDays = Math.round((dueDate - today) / 86400000);
                     const dueLabel = diffDays === 0 ? "Today" : diffDays === 1 ? "Tomorrow" : `In ${diffDays} days`;
                     const dueColor = diffDays === 0 ? "#f0a500" : diffDays < 0 ? "#e74c3c" : "#4f8ef7";
+                    const isBusy = busyId === n.id;
                     return (
-                      <div key={n.id} onClick={() => { setYear(dueDate.getFullYear()); setMonth(dueDate.getMonth()); setSelected(n.follow_up_date); }}
-                        style={{ background: theme.surfaceBg, border: `1px solid ${theme.border}`, borderRadius: 10, padding: "12px 14px", marginBottom: 8, cursor: "pointer" }}
+                      <div key={n.id}
+                        style={{ background: theme.surfaceBg, border: `1px solid ${theme.border}`, borderRadius: 10, padding: "12px 14px", marginBottom: 8 }}
                         onMouseEnter={e => e.currentTarget.style.borderColor = "#4f8ef7"}
                         onMouseLeave={e => e.currentTarget.style.borderColor = theme.border}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: theme.text, flex: 1, marginRight: 8 }}>{pat?.prescriber || `Patient #${n.patient_id}`}</div>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: dueColor, background: dueColor + "18", border: `1px solid ${dueColor}33`, borderRadius: 20, padding: "2px 8px", whiteSpace: "nowrap" }}>{dueLabel}</span>
+                        <div onClick={() => { setYear(dueDate.getFullYear()); setMonth(dueDate.getMonth()); setSelected(n.follow_up_date); }}
+                          style={{ cursor: "pointer" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: theme.text, flex: 1, marginRight: 8 }}>{pat?.prescriber || `Patient #${n.patient_id}`}</div>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: dueColor, background: dueColor + "18", border: `1px solid ${dueColor}33`, borderRadius: 20, padding: "2px 8px", whiteSpace: "nowrap" }}>{dueLabel}</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: theme.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 3 }}>{n.text}</div>
+                          <div style={{ fontSize: 11, color: theme.textFaint, marginBottom: 8 }}>{n.user_name}</div>
                         </div>
-                        <div style={{ fontSize: 12, color: theme.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 3 }}>{n.text}</div>
-                        <div style={{ fontSize: 11, color: theme.textFaint }}>{n.user_name}</div>
+                        <button onClick={() => handleMarkDone(n)} disabled={isBusy}
+                          style={{ width: "100%", padding: "5px 0", background: "rgba(46,204,113,0.1)", border: "1px solid rgba(46,204,113,0.3)", borderRadius: 6, color: "#2ecc71", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                          {isBusy ? "…" : "✓ Mark Done"}
+                        </button>
                       </div>
                     );
                   })
