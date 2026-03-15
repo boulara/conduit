@@ -11,6 +11,7 @@ import SettingsPage from "./components/SettingsPage";
 import AnalyticsPage from "./components/AnalyticsPage";
 import FollowUpCalendar from "./components/FollowUpCalendar";
 import TourOverlay from "./components/TourOverlay";
+import AdminPortal from "./components/AdminPortal";
 import { api } from "./api";
 import { APP_VERSION } from "./version";
 
@@ -211,11 +212,12 @@ function AppInner() {
   const avgAging    = patients.length ? Math.round(patients.reduce((a, p) => a + p.aging_of_status, 0) / patients.length) : 0;
 
   const navItems = [
-    { id: "dashboard", label: "Dashboard",  icon: "⊞" },
-    { id: "analytics", label: "Analytics",  icon: "◎" },
-    { id: "followups", label: "Follow-Ups", icon: "📅" },
-    { id: "inbox",     label: "Inbox",      icon: "✉" },
-    { id: "settings",  label: "Settings",   icon: "⚙" },
+    { id: "dashboard",    label: "Dashboard",  icon: "⊞" },
+    { id: "analytics",    label: "Analytics",  icon: "◎" },
+    { id: "followups",    label: "Follow-Ups", icon: "📅" },
+    { id: "inbox",        label: "Inbox",      icon: "✉" },
+    { id: "settings",     label: "Settings",   icon: "⚙" },
+    ...(user?.role === "admin" ? [{ id: "admin-portal", label: "Admin", icon: "🔒" }] : []),
   ];
 
   return (
@@ -336,6 +338,9 @@ function AppInner() {
 
         {/* Page content */}
         <div style={{ padding: isMobile ? "16px 12px 80px" : "28px 32px" }}>
+
+          {/* ── ADMIN PORTAL ── */}
+          {view === "admin-portal" && <AdminPortal currentUser={user} />}
 
           {/* ── SETTINGS ── */}
           {view === "settings" && <SettingsPage themeName={themeName} onSetTheme={setTheme} currentUser={user} />}

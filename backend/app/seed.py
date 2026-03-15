@@ -1,5 +1,6 @@
 """Seed initial patients and users if the database is empty."""
 import logging
+import uuid
 from .database import SessionLocal
 from .models import Patient, User
 
@@ -35,9 +36,14 @@ PATIENTS = [
     {"id": 200, "prescriber": "Evans, Daniel", "referral_date": "2025-08-28", "latest_sp_partner": "PANTHERx Rare", "latest_sp_status": "Pending", "latest_sp_substatus": "Reopen – Patient restarting therapy", "aging_of_status": 4, "last_comment": "Requested denial letter from plan", "latest_hub_sub_status": "No MD Response for Missing Information", "primary_channel": "Medicaid", "primary_payer": "Dept. of Defense - TRICARE", "primary_pbm": "Prime Therapeutics", "secondary_channel": "Medicaid", "territory": "St. Louis MO", "region": "Central", "language": "English", "hippa_consent": "Written", "program_type": "COMM", "first_ship_date": "2025-04-18", "last_ship_date": "2026-08-17"},
 ]
 
+SUPERADMINS = [
+    {"username": "nick.milero",   "password": "pass123", "name": "Nick Milero",   "team": "Home Office", "role": "admin"},
+    {"username": "rick.boulanger","password": "123",     "name": "Rick Boulanger","team": "Home Office", "role": "admin"},
+]
+
 USERS = [
-    {"id": "ho1", "username": "sarah.johnson", "password": "pass123", "name": "Sarah Johnson", "team": "Home Office", "role": "admin"},
-    {"id": "ho2", "username": "mike.chen", "password": "pass123", "name": "Mike Chen", "team": "Home Office", "role": "admin"},
+    {"id": "ho1", "username": "sarah.johnson", "password": "pass123", "name": "Sarah Johnson", "team": "Home Office", "role": "manager"},
+    {"id": "ho2", "username": "mike.chen", "password": "pass123", "name": "Mike Chen", "team": "Home Office", "role": "manager"},
     {"id": "ncm1", "username": "lisa.torres", "password": "pass123", "name": "Lisa Torres", "team": "NCM", "role": "partner"},
     {"id": "ncm2", "username": "james.wright", "password": "pass123", "name": "James Wright", "team": "NCM", "role": "partner"},
     {"id": "sp1", "username": "amy.patel", "password": "pass123", "name": "Amy Patel", "team": "SP", "role": "partner"},
@@ -63,5 +69,24 @@ def run():
                     u.team = "Sales"
                 db.commit()
                 logger.info("Migrated %d ISS users → Sales", len(iss_users))
+
+            # Ensure superadmin accounts exist
+            superadmin_usernames = [s["username"] for s in SUPERADMINS]
+            for sa in SUPERADMINS:
+                if not db.query(User).filter(User.username == sa["username"]).first():
+                    db.add(User(id=str(uuid.uuid4()), **sa))
+                    logger.info("Created superadmin user: %s", sa["username"])
+
+            # Downgrade any legacy admin → manager (except superadmins)
+            legacy = db.query(User).filter(
+                User.role == "admin",
+                ~User.username.in_(superadmin_usernames)
+            ).all()
+            for u in legacy:
+                u.role = "manager"
+                logger.info("Downgraded %s: admin → manager", u.username)
+
+            if legacy or any(not db.query(User).filter(User.username == s["username"]).first() for s in SUPERADMINS):
+                db.commit()
     finally:
         db.close()
