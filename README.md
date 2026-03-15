@@ -15,6 +15,11 @@ Teams — **Home Office**, **NCM**, **SP**, and **Sales** — can view a shared 
 
 ## Feature Log
 
+### v1.5.0 — 2026-03-14
+- **Favicon** — FireFly Software SVG firefly logo as browser tab icon (glowing green abdomen, blue body, wings, antennae on dark circle background).
+- **Version badge** — `vX.Y.Z` version tag displayed in the nav bar next to the AAIM Portal logo on both desktop and mobile.
+- **Guided Tour** — 🗺 Guide button in the nav launches an 11-step interactive walkthrough. Spotlight effect dims the page and highlights each feature with a pulsing blue ring. Keyboard ← → and Esc supported. Progress dots allow jumping to any step.
+
 ### v1.4.0 — 2026-03-14
 - **Case Notes** — Add private notes to any case without sending a team notification. Notes are visible only in the patient detail panel.
 - **Follow-Up Dates** — Set a follow-up date on any note. Date picker in the Notes tab of the patient panel.
