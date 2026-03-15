@@ -260,7 +260,7 @@ export default function AnalyticsPage({ patients, notifications, currentUser, re
   const replied      = notifications.filter(n => n.status === "replied").length;
   const totalNotifs  = notifications.length;
   const resolutionRate = totalNotifs > 0 ? Math.round(((acknowledged + replied) / totalNotifs) * 100) : 0;
-  const myNotifs     = notifications.filter(n => n.to_team === currentUser.team || n.from_team === currentUser.team);
+  const myNotifs     = currentUser ? notifications.filter(n => n.to_team === currentUser.team || n.from_team === currentUser.team) : [];
 
   // Notifications by team
   const teamNotifMap = {};
