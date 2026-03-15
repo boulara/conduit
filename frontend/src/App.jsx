@@ -7,6 +7,7 @@ import LoginScreen from "./components/LoginScreen";
 import PatientDetailPanel from "./components/PatientDetailPanel";
 import NotificationCard from "./components/NotificationCard";
 import SettingsPage from "./components/SettingsPage";
+import AnalyticsPage from "./components/AnalyticsPage";
 import { api } from "./api";
 
 export default function App() {
@@ -31,6 +32,9 @@ export default function App() {
   const [search, setSearch]                   = useState("");
   const [filterRegion, setFilterRegion]       = useState("All");
   const [filterChannel, setFilterChannel]     = useState("All");
+  const [filterSP, setFilterSP]               = useState("All");
+  const [filterPayer, setFilterPayer]         = useState("All");
+  const [filterAging, setFilterAging]         = useState("All");
   const [view, setView]                       = useState("dashboard");
   const [activeBucket, setActiveBucket]       = useState("all");
   const [showAllActivity, setShowAllActivity] = useState(false);
@@ -102,10 +106,14 @@ export default function App() {
   const patientBuckets = new Map(patients.map(p => [p.id, assignBuckets(p)]));
   const filtered       = patients.filter(p => {
     const q = search.toLowerCase();
+    const agingDays = p.aging_of_status;
     return (
-      (!search || p.prescriber?.toLowerCase().includes(q) || p.territory?.toLowerCase().includes(q) || p.primary_payer?.toLowerCase().includes(q)) &&
-      (filterRegion  === "All" || p.region          === filterRegion) &&
-      (filterChannel === "All" || p.primary_channel === filterChannel) &&
+      (!search || p.prescriber?.toLowerCase().includes(q) || p.territory?.toLowerCase().includes(q) || p.primary_payer?.toLowerCase().includes(q) || p.latest_sp_partner?.toLowerCase().includes(q)) &&
+      (filterRegion  === "All" || p.region               === filterRegion) &&
+      (filterChannel === "All" || p.primary_channel      === filterChannel) &&
+      (filterSP      === "All" || p.latest_sp_partner    === filterSP) &&
+      (filterPayer   === "All" || p.primary_payer        === filterPayer) &&
+      (filterAging   === "All" || (filterAging === "green" ? agingDays < 10 : filterAging === "yellow" ? agingDays >= 10 && agingDays < 20 : agingDays >= 20)) &&
       patientBuckets.get(p.id)?.has(activeBucket)
     );
   });
@@ -114,10 +122,13 @@ export default function App() {
   const myAllNotifs = notifications.filter(n => n.to_team === user.team || n.from_team === user.team);
   const regions     = ["All", ...Array.from(new Set(patients.map(p => p.region).filter(Boolean))).sort()];
   const channels    = ["All", ...Array.from(new Set(patients.map(p => p.primary_channel).filter(Boolean))).sort()];
+  const spPartners  = ["All", ...Array.from(new Set(patients.map(p => p.latest_sp_partner).filter(Boolean))).sort()];
+  const payers      = ["All", ...Array.from(new Set(patients.map(p => p.primary_payer).filter(Boolean))).sort()];
   const avgAging    = patients.length ? Math.round(patients.reduce((a, p) => a + p.aging_of_status, 0) / patients.length) : 0;
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: "⊞" },
+    { id: "analytics", label: "Analytics", icon: "◎" },
     { id: "inbox",     label: "Inbox",     icon: "✉" },
     { id: "settings",  label: "Settings",  icon: "⚙" },
   ];
@@ -193,6 +204,9 @@ export default function App() {
           {/* ── SETTINGS ── */}
           {view === "settings" && <SettingsPage isDark={isDark} onToggleTheme={toggleTheme} />}
 
+          {/* ── ANALYTICS ── */}
+          {view === "analytics" && <AnalyticsPage patients={patients} notifications={notifications} currentUser={user} />}
+
           {/* ── DASHBOARD ── */}
           {view === "dashboard" && (
             <>
@@ -231,17 +245,33 @@ export default function App() {
 
               {/* Filters */}
               <div style={{ display: "flex", gap: 10, marginBottom: 16, flexDirection: isMobile ? "column" : "row", flexWrap: "wrap" }}>
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search prescriber, territory, payer…"
-                  style={{ flex: "1 1 200px", padding: "10px 14px", background: theme.inputBg, border: `1px solid ${theme.borderInput}`, borderRadius: 8, color: theme.text, fontSize: 13, outline: "none" }} />
-                <div style={{ display: "flex", gap: 10 }}>
-                  <select value={filterRegion} onChange={e => setFilterRegion(e.target.value)}
-                    style={{ flex: 1, padding: "10px 12px", background: theme.selectBg, border: `1px solid ${theme.borderInput}`, borderRadius: 8, color: theme.text, fontSize: 13, outline: "none" }}>
-                    {regions.map(r => <option key={r} value={r}>{r === "All" ? "All Regions" : r}</option>)}
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search prescriber, territory, payer, SP…"
+                  style={{ flex: "1 1 220px", padding: "10px 14px", background: theme.inputBg, border: `1px solid ${theme.borderInput}`, borderRadius: 8, color: theme.text, fontSize: 13, outline: "none" }} />
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {[
+                    { value: filterRegion,  onChange: setFilterRegion,  options: regions,    all: "All Regions"  },
+                    { value: filterChannel, onChange: setFilterChannel, options: channels,   all: "All Channels" },
+                    { value: filterSP,      onChange: setFilterSP,      options: spPartners, all: "All SP"       },
+                    { value: filterPayer,   onChange: setFilterPayer,   options: payers,     all: "All Payers"   },
+                  ].map(({ value, onChange, options, all }) => (
+                    <select key={all} value={value} onChange={e => onChange(e.target.value)}
+                      style={{ padding: "10px 12px", background: value !== "All" ? theme.inputBg : theme.selectBg, border: `1px solid ${value !== "All" ? "#4f8ef7" : theme.borderInput}`, borderRadius: 8, color: theme.text, fontSize: 13, outline: "none" }}>
+                      {options.map(o => <option key={o} value={o}>{o === "All" ? all : o}</option>)}
+                    </select>
+                  ))}
+                  <select value={filterAging} onChange={e => setFilterAging(e.target.value)}
+                    style={{ padding: "10px 12px", background: filterAging !== "All" ? theme.inputBg : theme.selectBg, border: `1px solid ${filterAging !== "All" ? "#4f8ef7" : theme.borderInput}`, borderRadius: 8, color: theme.text, fontSize: 13, outline: "none" }}>
+                    <option value="All">All Aging</option>
+                    <option value="green">{"< 10 days"}</option>
+                    <option value="yellow">10–20 days</option>
+                    <option value="red">{"20+ days"}</option>
                   </select>
-                  <select value={filterChannel} onChange={e => setFilterChannel(e.target.value)}
-                    style={{ flex: 1, padding: "10px 12px", background: theme.selectBg, border: `1px solid ${theme.borderInput}`, borderRadius: 8, color: theme.text, fontSize: 13, outline: "none" }}>
-                    {channels.map(c => <option key={c} value={c}>{c === "All" ? "All Channels" : c}</option>)}
-                  </select>
+                  {(filterRegion !== "All" || filterChannel !== "All" || filterSP !== "All" || filterPayer !== "All" || filterAging !== "All" || search) && (
+                    <button onClick={() => { setFilterRegion("All"); setFilterChannel("All"); setFilterSP("All"); setFilterPayer("All"); setFilterAging("All"); setSearch(""); }}
+                      style={{ padding: "10px 14px", background: "rgba(231,76,60,0.12)", border: "1px solid rgba(231,76,60,0.3)", borderRadius: 8, color: "#e74c3c", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+                      Clear ✕
+                    </button>
+                  )}
                 </div>
               </div>
 
