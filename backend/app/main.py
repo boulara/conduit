@@ -22,7 +22,7 @@ app.include_router(notifications.router)
 app.include_router(users.router)
 
 # Serve the built React frontend if it exists
-static_dir = os.path.join(os.path.dirname(__file__), "..", "..", "static")
+static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
 if os.path.isdir(static_dir):
     app.mount("/assets", StaticFiles(directory=os.path.join(static_dir, "assets")), name="assets")
 
