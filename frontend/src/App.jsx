@@ -99,6 +99,7 @@ function AppInner() {
   const [filterPayer, setFilterPayer]         = useState("All");
   const [filterAging, setFilterAging]         = useState("All");
   const [view, setView]                       = useState("dashboard");
+  const [analyticsTab, setAnalyticsTab]       = useState("case");
   const [activeBucket, setActiveBucket]       = useState("all");
   const [showAllActivity, setShowAllActivity] = useState(false);
   const [toasts, setToasts]                   = useState([]);
@@ -268,7 +269,6 @@ function AppInner() {
     { id: "followups",    label: "Follow-Ups", icon: "📅" },
     { id: "inbox",        label: "Inbox",      icon: "✉" },
     { id: "settings",     label: "Settings",   icon: "⚙" },
-    ...(["admin", "manager"].includes(user?.role) ? [{ id: "engagement", label: "Usage", icon: "📊" }] : []),
     ...(user?.role === "admin" ? [{ id: "admin-portal", label: "Admin", icon: "🔒" }] : []),
   ];
 
@@ -403,17 +403,32 @@ function AppInner() {
         {/* Page content */}
         <div style={{ padding: isMobile ? "16px 12px 80px" : "28px 32px" }}>
 
-          {/* ── ENGAGEMENT ── */}
-          {view === "engagement" && <EngagementPage currentUser={user} />}
-
           {/* ── ADMIN PORTAL ── */}
           {view === "admin-portal" && <AdminPortal currentUser={user} />}
 
           {/* ── SETTINGS ── */}
           {view === "settings" && <SettingsPage themeName={themeName} onSetTheme={setTheme} timezone={timezone} onSetTimezone={setTimezone} currentUser={user} />}
 
-          {/* ── ANALYTICS ── */}
-          {view === "analytics" && <AnalyticsPage patients={patients} notifications={notifications} currentUser={user} loading={patientsLoading} error={patientsError} onRetry={loadPatients} />}
+          {/* ── ANALYTICS (with Usage sub-tab for admin/manager) ── */}
+          {view === "analytics" && (
+            <>
+              {["admin", "manager"].includes(user?.role) && (
+                <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: `1px solid ${theme.border}` }}>
+                  {[["case", "Case Analytics"], ["engagement", "Usage"]].map(([tab, label]) => (
+                    <button key={tab} onClick={() => setAnalyticsTab(tab)}
+                      style={{ padding: "10px 22px", background: "none", border: "none",
+                        borderBottom: `2px solid ${analyticsTab === tab ? "#14B8A6" : "transparent"}`,
+                        color: analyticsTab === tab ? "#14B8A6" : theme.textMuted,
+                        fontSize: 13, fontWeight: 600, cursor: "pointer", letterSpacing: 0.3 }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {analyticsTab === "case" && <AnalyticsPage patients={patients} notifications={notifications} currentUser={user} loading={patientsLoading} error={patientsError} onRetry={loadPatients} />}
+              {analyticsTab === "engagement" && ["admin", "manager"].includes(user?.role) && <EngagementPage currentUser={user} />}
+            </>
+          )}
 
           {/* ── FOLLOW-UPS ── */}
           {view === "followups" && <FollowUpCalendar patients={patients} notes={myNotes} onNoteChange={handleNoteChange} />}
