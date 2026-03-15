@@ -4,7 +4,8 @@ import resend
 
 logger = logging.getLogger(__name__)
 
-SALES_EMAIL = os.environ.get("SALES_EMAIL", "boulara@me.com")
+_raw = os.environ.get("SALES_EMAIL", "boulara@me.com,nicholas.milero@outlook.com")
+SALES_EMAILS = [e.strip() for e in _raw.split(",") if e.strip()]
 resend.api_key = os.environ.get("RESEND_API_KEY", "")
 
 PRIORITY_LABELS = {"urgent": "🔴 URGENT", "high": "🟡 HIGH", "normal": "Normal"}
@@ -65,10 +66,10 @@ def send_sales_notification(notification, patient):
     try:
         resend.Emails.send({
             "from":    "AAIM Portal <onboarding@resend.dev>",
-            "to":      [SALES_EMAIL],
+            "to":      SALES_EMAILS,
             "subject": f"[{priority_label}] New Notification — {prescriber} ({territory})",
             "html":    html,
         })
-        logger.info("Sales email sent to %s for patient %s", SALES_EMAIL, patient_id)
+        logger.info("Sales email sent to %s for patient %s", SALES_EMAILS, patient_id)
     except Exception as e:
         logger.error("Failed to send sales email: %s", e)

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "../ThemeContext";
+import { useIsMobile } from "../useIsMobile";
 import { TEAM_COLORS } from "../constants";
 import { api } from "../api";
 
@@ -81,7 +82,8 @@ function UserModal({ user, onSave, onClose, theme }) {
 }
 
 export default function SettingsPage({ isDark, onToggleTheme }) {
-  const theme = useTheme();
+  const theme    = useTheme();
+  const isMobile = useIsMobile();
   const [users, setUsers]         = useState([]);
   const [editingUser, setEditing] = useState(null);
   const [deletingId, setDeleting] = useState(null);
@@ -146,7 +148,37 @@ export default function SettingsPage({ isDark, onToggleTheme }) {
 
         {loading ? (
           <div style={{ padding: "32px", textAlign: "center", color: theme.textFaint }}>Loading…</div>
+        ) : isMobile ? (
+          /* Mobile: card list */
+          <div style={{ padding: "12px" }}>
+            {users.map(u => {
+              const tc = TEAM_COLORS[u.team] || { accent: "#888", light: "#eee", lightText: "#555" };
+              return (
+                <div key={u.id} style={{ background: theme.surfaceBg2, border: `1px solid ${theme.border}`, borderRadius: 10, padding: "14px", marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: tc.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
+                      {u.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: theme.text }}>{u.name}</div>
+                      <div style={{ fontSize: 12, color: theme.textFaint, fontFamily: "monospace" }}>{u.username}</div>
+                    </div>
+                    <span style={{ padding: "3px 10px", background: theme.isDark ? tc.light + "22" : tc.light, color: theme.isDark ? tc.accent : tc.lightText, borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{u.team}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => setEditing(u)}
+                      style={{ flex: 1, padding: "8px", background: "rgba(79,142,247,0.12)", border: "1px solid rgba(79,142,247,0.3)", borderRadius: 6, color: "#4f8ef7", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Edit</button>
+                    <button onClick={() => handleDelete(u.id)} disabled={deletingId === u.id}
+                      style={{ flex: 1, padding: "8px", background: "rgba(231,76,60,0.1)", border: "1px solid rgba(231,76,60,0.3)", borderRadius: 6, color: "#e74c3c", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                      {deletingId === u.id ? "…" : "Delete"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
+          /* Desktop: table */
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: theme.surfaceBg2 }}>
@@ -178,9 +210,7 @@ export default function SettingsPage({ isDark, onToggleTheme }) {
                     <td style={{ padding: "13px 20px" }}>
                       <div style={{ display: "flex", gap: 8 }}>
                         <button onClick={() => setEditing(u)}
-                          style={{ padding: "5px 14px", background: "rgba(79,142,247,0.12)", border: "1px solid rgba(79,142,247,0.3)", borderRadius: 6, color: "#4f8ef7", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                          Edit
-                        </button>
+                          style={{ padding: "5px 14px", background: "rgba(79,142,247,0.12)", border: "1px solid rgba(79,142,247,0.3)", borderRadius: 6, color: "#4f8ef7", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Edit</button>
                         <button onClick={() => handleDelete(u.id)} disabled={deletingId === u.id}
                           style={{ padding: "5px 14px", background: "rgba(231,76,60,0.1)", border: "1px solid rgba(231,76,60,0.3)", borderRadius: 6, color: "#e74c3c", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
                           {deletingId === u.id ? "…" : "Delete"}

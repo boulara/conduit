@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { TEAM_COLORS, formatDate, agingColor } from "../constants";
 import { useTheme } from "../ThemeContext";
+import { useIsMobile } from "../useIsMobile";
 import NotificationCard from "./NotificationCard";
 import { api } from "../api";
 
 export default function PatientDetailPanel({ patient: p, currentUser, notifications, onNewNotification, onClose }) {
-  const theme = useTheme();
+  const theme    = useTheme();
+  const isMobile = useIsMobile();
   const [tab, setTab]               = useState("details");
   const [comment, setComment]       = useState("");
   const [targetTeam, setTargetTeam] = useState("NCM");
@@ -39,9 +41,9 @@ export default function PatientDetailPanel({ patient: p, currentUser, notificati
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 100, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ width: "min(860px, 100%)", maxHeight: "90vh", background: theme.panelBg, border: `1px solid ${theme.border}`, borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      <div style={{ width: isMobile ? "100%" : "min(860px, 100%)", height: isMobile ? "92vh" : "auto", maxHeight: isMobile ? "92vh" : "90vh", background: theme.panelBg, border: `1px solid ${theme.border}`, borderRadius: isMobile ? "16px 16px 0 0" : 16, overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
         {/* Header */}
         <div style={{ padding: "20px 28px", background: "rgba(79,142,247,0.1)", borderBottom: `1px solid ${theme.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -67,7 +69,7 @@ export default function PatientDetailPanel({ patient: p, currentUser, notificati
         <div style={{ flex: 1, overflowY: "auto", padding: 28 }}>
           {/* Details */}
           {tab === "details" && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
               {[
                 ["SP Partner",        p.latest_sp_partner],
                 ["SP Status",         p.latest_sp_status],
