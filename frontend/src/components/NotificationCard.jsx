@@ -12,7 +12,9 @@ export default function NotificationCard({ notification: n, currentUser, onUpdat
   const [busy, setBusy]           = useState(false);
 
   const isRecipient    = currentUser.team === n.to_team;
-  const canAcknowledge = isRecipient && n.status === "pending";
+  const isSender       = currentUser.team === n.from_team;
+  const canAcknowledge = (isRecipient && n.status === "pending") || (isSender && n.status === "replied");
+  const isDismiss      = isSender && n.status === "replied"; // sender dismissing a reply
   const canReply       = n.status === "pending" || n.status === "replied";
 
   const handleAcknowledge = async () => {
@@ -130,7 +132,7 @@ export default function NotificationCard({ notification: n, currentUser, onUpdat
               {canAcknowledge && (
                 <button onClick={handleAcknowledge} disabled={busy}
                   style={{ padding: "7px 18px", background: "rgba(46,204,113,0.12)", border: "1px solid rgba(46,204,113,0.35)", borderRadius: 7, color: "#2ecc71", fontSize: 12, fontWeight: 700, cursor: busy ? "wait" : "pointer" }}>
-                  ✓ Acknowledge
+                  {isDismiss ? "✓ Dismiss" : "✓ Acknowledge"}
                 </button>
               )}
               {canReply && (

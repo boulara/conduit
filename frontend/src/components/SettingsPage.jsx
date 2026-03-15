@@ -1129,6 +1129,17 @@ export default function SettingsPage({ themeName, onSetTheme, timezone, onSetTim
 
   const RELEASES = [
     {
+      version: "2.4.1",
+      date: "March 15, 2026",
+      title: "Dismiss Notification Replies",
+      badge: "Bug Fix",
+      badgeColor: "#e74c3c",
+      changes: [
+        "Replied notifications are no longer stuck in the sender's inbox permanently",
+        "A Dismiss button now appears on replied notifications for the original sender, clearing them from the inbox once the reply has been reviewed",
+      ],
+    },
+    {
       version: "2.4.0",
       date: "March 15, 2026",
       title: "User Engagement Dashboard",
