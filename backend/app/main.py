@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy import text
 from .database import engine, Base
-from .routers import patients, notifications, users, notes, admin, reports
+from .routers import patients, notifications, users, notes, admin, reports, ingest
 from . import seed as seeder
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -62,6 +62,29 @@ def _run_migrations():
         )""",
         # Rename misspelled column hippa_consent → hipaa_consent
         "ALTER TABLE patients RENAME COLUMN hippa_consent TO hipaa_consent",
+        """CREATE TABLE IF NOT EXISTS ingest_keys (
+            id VARCHAR PRIMARY KEY,
+            name VARCHAR NOT NULL,
+            key_hash VARCHAR NOT NULL,
+            key_prefix VARCHAR NOT NULL,
+            created_by VARCHAR NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW(),
+            last_used_at TIMESTAMP,
+            is_active BOOLEAN DEFAULT TRUE
+        )""",
+        """CREATE TABLE IF NOT EXISTS ingest_logs (
+            id VARCHAR PRIMARY KEY,
+            table_name VARCHAR NOT NULL,
+            key_id VARCHAR REFERENCES ingest_keys(id),
+            key_name VARCHAR,
+            rows_received INTEGER DEFAULT 0,
+            rows_upserted INTEGER DEFAULT 0,
+            rows_deleted INTEGER DEFAULT 0,
+            status VARCHAR DEFAULT 'ok',
+            error_msg TEXT,
+            duration_ms INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT NOW()
+        )""",
     ]
     with engine.connect() as conn:
         for sql in migrations:
@@ -109,7 +132,7 @@ app.add_middleware(
     allow_origins=[o.strip() for o in _allowed_origins],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
-    allow_headers=["Content-Type", "X-User-ID"],
+    allow_headers=["Content-Type", "X-User-ID", "X-API-Key"],
 )
 
 @app.get("/api/health")
@@ -122,6 +145,7 @@ app.include_router(users.router)
 app.include_router(notes.router)
 app.include_router(admin.router)
 app.include_router(reports.router)
+app.include_router(ingest.router)
 
 # ── Serve built React frontend ────────────────────────────────────────────────
 static_dir = os.path.join(os.path.dirname(__file__), "..", "static")

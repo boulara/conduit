@@ -115,3 +115,32 @@ class SharedReport(Base):
     created_by = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime, nullable=False)
+
+
+class IngestKey(Base):
+    __tablename__ = "ingest_keys"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    name = Column(String, nullable=False)          # human label, e.g. "Daily SFTP feed"
+    key_hash = Column(String, nullable=False)       # SHA-256 hex of the raw key
+    key_prefix = Column(String, nullable=False)     # first 8 chars shown in UI
+    created_by = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_used_at = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True)
+
+
+class IngestLog(Base):
+    __tablename__ = "ingest_logs"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    table_name = Column(String, nullable=False)    # "patients" | "users" | "alignment"
+    key_id = Column(String, ForeignKey("ingest_keys.id"), nullable=True)
+    key_name = Column(String, nullable=True)
+    rows_received = Column(Integer, default=0)
+    rows_upserted = Column(Integer, default=0)
+    rows_deleted = Column(Integer, default=0)
+    status = Column(String, default="ok")          # "ok" | "error"
+    error_msg = Column(Text, nullable=True)
+    duration_ms = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
