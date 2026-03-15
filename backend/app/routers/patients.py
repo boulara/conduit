@@ -2,12 +2,21 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import Patient
+from ..models import Patient, User
 from ..schemas import PatientOut, PatientUpdate, PatientCreate, BulkResult
+from ..auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
+
+_UPDATABLE_PATIENT_FIELDS = {
+    "prescriber", "referral_date", "latest_sp_partner", "latest_sp_status",
+    "latest_sp_substatus", "aging_of_status", "last_comment",
+    "latest_hub_sub_status", "primary_channel", "primary_payer", "primary_pbm",
+    "secondary_channel", "territory", "region", "language", "hippa_consent",
+    "program_type", "first_ship_date", "last_ship_date",
+}
 
 
 @router.get("/", response_model=list[PatientOut])
@@ -16,6 +25,7 @@ def list_patients(
     region: str = Query(default="All"),
     channel: str = Query(default="All"),
     db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
 ):
     q = db.query(Patient)
     if search:
@@ -33,23 +43,32 @@ def list_patients(
 
 
 @router.post("/bulk", response_model=BulkResult)
-def bulk_create_patients(body: list[PatientCreate], db: Session = Depends(get_db)):
-    created = 0
+def bulk_create_patients(
+    body: list[PatientCreate],
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
+    created = skipped = 0
     errors = []
     for p in body:
         try:
             db.add(Patient(**p.model_dump()))
-            db.commit()
+            db.flush()
             created += 1
         except Exception as e:
             db.rollback()
             errors.append(f"{p.prescriber}: {str(e)}")
-    logger.info("Bulk patient import: %d created, %d errors", created, len(errors))
-    return {"created": created, "skipped": 0, "errors": errors}
+    db.commit()
+    logger.info("Bulk patient import: %d created, %d skipped, %d errors", created, skipped, len(errors))
+    return {"created": created, "skipped": skipped, "errors": errors}
 
 
 @router.get("/{patient_id}", response_model=PatientOut)
-def get_patient(patient_id: int, db: Session = Depends(get_db)):
+def get_patient(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
@@ -57,11 +76,17 @@ def get_patient(patient_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/{patient_id}", response_model=PatientOut)
-def update_patient(patient_id: int, body: PatientUpdate, db: Session = Depends(get_db)):
+def update_patient(
+    patient_id: int,
+    body: PatientUpdate,
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
-    for k, v in body.model_dump(exclude_none=True).items():
+    updates = {k: v for k, v in body.model_dump(exclude_none=True).items() if k in _UPDATABLE_PATIENT_FIELDS}
+    for k, v in updates.items():
         setattr(patient, k, v)
     db.commit()
     db.refresh(patient)
@@ -70,7 +95,11 @@ def update_patient(patient_id: int, body: PatientUpdate, db: Session = Depends(g
 
 
 @router.delete("/{patient_id}", status_code=204)
-def delete_patient(patient_id: int, db: Session = Depends(get_db)):
+def delete_patient(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")

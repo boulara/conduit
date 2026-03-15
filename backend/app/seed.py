@@ -3,6 +3,7 @@ import logging
 import uuid
 from .database import SessionLocal
 from .models import Patient, User
+from .auth import hash_password
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,8 @@ def run():
     db = SessionLocal()
     try:
         if db.query(User).count() == 0:
-            db.bulk_insert_mappings(User, USERS)
+            hashed_users = [{**u, "password": hash_password(u["password"])} for u in USERS]
+            db.bulk_insert_mappings(User, hashed_users)
             db.bulk_insert_mappings(Patient, PATIENTS)
             db.commit()
             logger.info("Database seeded with %d users and %d patients", len(USERS), len(PATIENTS))
@@ -69,6 +71,14 @@ def run():
                     u.team = "Sales"
                 db.commit()
                 logger.info("Migrated %d ISS users → Sales", len(iss_users))
+
+            # Hash any plain-text passwords still in the database
+            plain_text_users = [u for u in db.query(User).all() if not u.password.startswith("$2")]
+            for u in plain_text_users:
+                u.password = hash_password(u.password)
+                logger.info("Hashed password for user: %s", u.username)
+            if plain_text_users:
+                db.commit()
 
             # Scrub patient data: update prescriber names and SP partner names by ID
             PATIENT_UPDATES = {p["id"]: {"prescriber": p["prescriber"], "latest_sp_partner": p["latest_sp_partner"], "last_comment": p["last_comment"]} for p in PATIENTS}

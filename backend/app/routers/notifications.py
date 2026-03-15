@@ -3,13 +3,17 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import Notification, NotificationReply, Patient
+from ..models import Notification, NotificationReply, Patient, User
 from ..schemas import NotificationOut, NotificationCreate, NotificationUpdate, ReplyCreate
 from ..email import send_sales_notification
+from ..auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
+
+_VALID_STATUSES = {"pending", "replied", "acknowledged"}
+_VALID_PRIORITIES = {"normal", "high", "urgent"}
 
 
 def enrich(n: Notification) -> dict:
@@ -19,14 +23,22 @@ def enrich(n: Notification) -> dict:
 
 
 @router.get("/")
-def list_notifications(db: Session = Depends(get_db)):
+def list_notifications(
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
     notifs = db.query(Notification).order_by(Notification.created_at.desc()).all()
-    logger.info("Listed %d notifications", len(notifs))
     return [enrich(n) for n in notifs]
 
 
 @router.post("/", status_code=201)
-def create_notification(body: NotificationCreate, db: Session = Depends(get_db)):
+def create_notification(
+    body: NotificationCreate,
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
+    if body.priority not in _VALID_PRIORITIES:
+        raise HTTPException(status_code=400, detail=f"Invalid priority. Must be one of: {_VALID_PRIORITIES}")
     patient = db.query(Patient).filter(Patient.id == body.patient_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
@@ -42,7 +54,8 @@ def create_notification(body: NotificationCreate, db: Session = Depends(get_db))
     db.add(n)
     db.commit()
     db.refresh(n)
-    logger.info("Notification created: %s → %s for patient %s (priority: %s)", body.from_team, body.to_team, body.patient_id, body.priority)
+    logger.info("Notification created: %s → %s for patient %s (priority: %s)",
+                body.from_team, body.to_team, body.patient_id, body.priority)
 
     if body.to_team == "Sales":
         send_sales_notification(n, patient)
@@ -55,15 +68,18 @@ def update_notification(
     notification_id: str,
     body: NotificationUpdate,
     db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
 ):
     n = db.query(Notification).filter(Notification.id == notification_id).first()
     if not n:
         raise HTTPException(status_code=404, detail="Notification not found")
     if body.status:
+        if body.status not in _VALID_STATUSES:
+            raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {_VALID_STATUSES}")
         n.status = body.status
     if body.status == "acknowledged":
-        n.acknowledged_at  = datetime.utcnow()
-        n.acknowledged_by  = body.acknowledged_by
+        n.acknowledged_at = datetime.utcnow()
+        n.acknowledged_by = body.acknowledged_by
     db.commit()
     db.refresh(n)
     logger.info("Notification %s updated to status '%s'", notification_id, n.status)
@@ -75,6 +91,7 @@ def add_reply(
     notification_id: str,
     body: ReplyCreate,
     db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
 ):
     n = db.query(Notification).filter(Notification.id == notification_id).first()
     if not n:

@@ -1,12 +1,17 @@
 import os
 import logging
+import html
 import resend
 
 logger = logging.getLogger(__name__)
 
-_raw = os.environ.get("SALES_EMAIL", "boulara@me.com,nicholas.milero@outlook.com")
+# Require explicit configuration — no hardcoded fallback addresses
+_raw = os.environ.get("SALES_EMAIL", "")
 SALES_EMAILS = [e.strip() for e in _raw.split(",") if e.strip()]
+
 resend.api_key = os.environ.get("RESEND_API_KEY", "")
+
+_FROM_ADDRESS = os.environ.get("FROM_EMAIL", "notifications@conduit.app")
 
 PRIORITY_LABELS = {"urgent": "🔴 URGENT", "high": "🟡 HIGH", "normal": "Normal"}
 
@@ -16,27 +21,37 @@ def send_sales_notification(notification, patient):
     if not resend.api_key:
         logger.warning("RESEND_API_KEY not set — skipping email")
         return
+    if not SALES_EMAILS:
+        logger.warning("SALES_EMAIL not configured — skipping email")
+        return
 
     priority_label = PRIORITY_LABELS.get(notification.priority, notification.priority)
-    prescriber     = patient.prescriber if patient else "Unknown"
-    patient_id     = patient.id if patient else "N/A"
-    territory      = patient.territory if patient else "—"
-    region         = patient.region if patient else "—"
-    payer          = patient.primary_payer if patient else "—"
-    program        = patient.program_type if patient else "—"
-    aging          = patient.aging_of_status if patient else "—"
 
-    html = f"""
+    # Escape all user-controlled content before embedding in HTML
+    prescriber = html.escape(patient.prescriber if patient else "Unknown")
+    patient_id = html.escape(str(patient.id if patient else "N/A"))
+    territory  = html.escape(patient.territory if patient else "—")
+    region     = html.escape(patient.region if patient else "—")
+    payer      = html.escape(patient.primary_payer if patient else "—")
+    program    = html.escape(patient.program_type if patient else "—")
+    aging      = html.escape(str(patient.aging_of_status if patient else "—"))
+    from_team  = html.escape(notification.from_team)
+    from_user  = html.escape(notification.from_user)
+    comment    = html.escape(notification.comment)
+
+    priority_color = "#e74c3c" if notification.priority == "urgent" else "#f0a500" if notification.priority == "high" else "#374151"
+
+    html_body = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f9fafb; padding: 24px; border-radius: 12px;">
-      <div style="background: #1a2744; border-radius: 10px; padding: 20px 24px; margin-bottom: 20px;">
-        <div style="color: #4f8ef7; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 6px;">AAIM Portal</div>
+      <div style="background: #0B1829; border-radius: 10px; padding: 20px 24px; margin-bottom: 20px;">
+        <div style="color: #14B8A6; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 6px;">Conduit</div>
         <div style="color: #ffffff; font-size: 22px; font-weight: 700;">New Sales Notification</div>
-        <div style="color: rgba(255,255,255,0.6); font-size: 13px; margin-top: 4px;">From: {notification.from_team} · {notification.from_user}</div>
+        <div style="color: rgba(255,255,255,0.6); font-size: 13px; margin-top: 4px;">From: {from_team} · {from_user}</div>
       </div>
 
       <div style="background: #fff; border-radius: 10px; padding: 20px 24px; margin-bottom: 16px; border: 1px solid #e5e7eb;">
         <div style="font-size: 11px; letter-spacing: 2px; color: #9ca3af; text-transform: uppercase; margin-bottom: 4px;">Priority</div>
-        <div style="font-size: 16px; font-weight: 700; color: {'#e74c3c' if notification.priority == 'urgent' else '#f0a500' if notification.priority == 'high' else '#374151'};">{priority_label}</div>
+        <div style="font-size: 16px; font-weight: 700; color: {priority_color};">{priority_label}</div>
       </div>
 
       <div style="background: #fff; border-radius: 10px; padding: 20px 24px; margin-bottom: 16px; border: 1px solid #e5e7eb;">
@@ -52,23 +67,23 @@ def send_sales_notification(notification, patient):
         </table>
       </div>
 
-      <div style="background: #fff; border-radius: 10px; padding: 20px 24px; border: 1px solid #e5e7eb; border-left: 4px solid #4f8ef7;">
+      <div style="background: #fff; border-radius: 10px; padding: 20px 24px; border: 1px solid #e5e7eb; border-left: 4px solid #14B8A6;">
         <div style="font-size: 11px; letter-spacing: 2px; color: #9ca3af; text-transform: uppercase; margin-bottom: 8px;">Message</div>
-        <div style="font-size: 14px; color: #374151; line-height: 1.6;">{notification.comment}</div>
+        <div style="font-size: 14px; color: #374151; line-height: 1.6;">{comment}</div>
       </div>
 
       <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #9ca3af;">
-        Log in to AAIM Portal to acknowledge or reply to this notification.
+        Log in to Conduit to acknowledge or reply to this notification.
       </div>
     </div>
     """
 
     try:
         resend.Emails.send({
-            "from":    "AAIM Portal <onboarding@resend.dev>",
+            "from":    f"Conduit <{_FROM_ADDRESS}>",
             "to":      SALES_EMAILS,
             "subject": f"[{priority_label}] New Notification — {prescriber} ({territory})",
-            "html":    html,
+            "html":    html_body,
         })
         logger.info("Sales email sent to %s for patient %s", SALES_EMAILS, patient_id)
     except Exception as e:
