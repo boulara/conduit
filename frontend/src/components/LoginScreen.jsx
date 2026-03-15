@@ -63,13 +63,30 @@ export default function LoginScreen({ onLogin }) {
         </button>
 
         <div style={{ marginTop: 24, padding: "16px", background: "rgba(255,255,255,0.04)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)" }}>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 8, letterSpacing: 1 }}>DEMO CREDENTIALS</div>
-          {[["Home Office", "sarah.johnson"], ["NCM", "lisa.torres"], ["SP", "amy.patel"], ["Sales", "diana.reyes"]].map(([team, user]) => (
-            <div key={team} style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>
-              <span style={{ color: TEAM_COLORS[team]?.accent || "#fff", fontWeight: 600 }}>{team}:</span>{" "}
-              <span style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => { setUsername(user); setPassword("pass123"); }}>{user}</span> / pass123
-            </div>
-          ))}
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 10, letterSpacing: 1 }}>DEMO — CLICK TO SIGN IN</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {[["Home Office", "sarah.johnson"], ["NCM", "lisa.torres"], ["SP", "amy.patel"], ["Sales", "diana.reyes"]].map(([team, u]) => {
+              const accent = TEAM_COLORS[team]?.accent || "#fff";
+              return (
+                <button key={team} onClick={async () => {
+                    setLoading(true);
+                    try { const user = await api.login(u, "pass123"); localStorage.setItem("aaim_user", JSON.stringify(user)); onLogin(user); }
+                    catch { setError("Login failed."); }
+                    finally { setLoading(false); }
+                  }}
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: accent + "12", border: `1px solid ${accent}33`, borderRadius: 8, cursor: "pointer", textAlign: "left", width: "100%" }}>
+                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
+                    {u.split(".").map(w => w[0]).join("").toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: accent }}>{team}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{u}</div>
+                  </div>
+                  <div style={{ marginLeft: "auto", fontSize: 11, color: "rgba(255,255,255,0.25)" }}>tap →</div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
       <style>{GLOBAL_STYLES}</style>
