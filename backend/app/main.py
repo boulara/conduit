@@ -77,6 +77,14 @@ static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
 if os.path.isdir(static_dir):
     app.mount("/assets", StaticFiles(directory=os.path.join(static_dir, "assets")), name="assets")
 
+    img_dir = os.path.join(static_dir, "img")
+    if os.path.isdir(img_dir):
+        app.mount("/img", StaticFiles(directory=img_dir), name="img")
+
+    @app.get("/favicon.svg")
+    def serve_favicon():
+        return FileResponse(os.path.join(static_dir, "favicon.svg"))
+
     @app.get("/{full_path:path}")
     def serve_frontend(full_path: str):
         return FileResponse(os.path.join(static_dir, "index.html"))

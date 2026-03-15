@@ -71,6 +71,9 @@ Send each user their `username` and `password`. They log in at your Railway URL.
 
 ## Feature Log
 
+### v1.6.4 — 2026-03-15
+- **Bug fix: logos not loading** — FastAPI was only serving `/assets/` as static files; `/img/*.svg` requests were falling through to the SPA catch-all and returning `index.html`. Fixed by mounting `/img` as a dedicated static directory. Affects all brand logos on login page and nav bar.
+
 ### v1.6.3 — 2026-03-15
 - **Mark Done from Calendar** — ✓ Mark Done / ↩ Undo buttons now appear directly on every follow-up card in the Follow-Up Calendar view (overdue banner, selected date panel, upcoming sidebar). No need to open a patient detail panel to complete a follow-up.
 - **Cycling brand logos** — Login page shows a rotating logo banner cycling through all 8 brand options (RelayRx A–D, Conduit E–H) every 3.5 seconds. Nav upper left picks 2 logos randomly per session and alternates between them every 4 seconds.
