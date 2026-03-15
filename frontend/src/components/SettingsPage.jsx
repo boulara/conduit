@@ -1129,6 +1129,17 @@ export default function SettingsPage({ themeName, onSetTheme, timezone, onSetTim
 
   const RELEASES = [
     {
+      version: "2.3.1",
+      date: "March 15, 2026",
+      title: "Analytics Loading Fix",
+      badge: "Bug Fix",
+      badgeColor: "#e74c3c",
+      changes: [
+        "Analytics page no longer gets permanently stuck on 'Loading analytics…' when the data fetch fails",
+        "Added explicit loading spinner, error message, and a Retry button so failures are visible and recoverable without a page refresh",
+      ],
+    },
+    {
       version: "2.3.0",
       date: "March 15, 2026",
       title: "PDF Export & Shareable Analytics Links",
